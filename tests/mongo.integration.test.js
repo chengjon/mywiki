@@ -271,6 +271,10 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
     const filePage = fileState.pages.find((page) => page.slug === 'openai-note');
     fileSource.localPath = '/tmp/file-only-openai-note.md';
     fileSource.checksum = 'file-only-checksum';
+    fileSource.metadata = {
+      ...(fileSource.metadata ?? {}),
+      lastSeenLocalPath: '/tmp/file-only-last-seen.md'
+    };
     filePage.title = 'OpenAI Note File Variant';
     await writeFile(statePath, JSON.stringify(fileState, null, 2), 'utf8');
 
@@ -311,8 +315,94 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
     assert.match(doctorOutput, /Mongo-only sources: anthropic-note/i);
     assert.match(doctorOutput, /Mongo-only pages: .*anthropic-note/i);
     assert.match(doctorOutput, /Source local path mismatches: openai-note/i);
+    assert.match(doctorOutput, /Source last seen path mismatches: openai-note/i);
     assert.match(doctorOutput, /Source checksum mismatches: openai-note/i);
     assert.match(doctorOutput, /Title mismatches: openai-note/i);
+  } finally {
+    await mongod.stop();
+  }
+});
+
+test('mongo batch-ingest remembers renamed duplicate paths and reingests later changes into the same source', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_mongo_batch_path_history_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  try {
+    await runCli(['doctor', '--root', root], { stdout });
+
+    const firstPath = path.join(root, 'raw', 'inbox', '01-openai-notes.md');
+    const renamedPath = path.join(root, 'raw', 'inbox', '02-openai-notes-renamed.md');
+    await writeFile(firstPath, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'batch-ingest',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+
+    await writeFile(renamedPath, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'batch-ingest',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+
+    await writeFile(renamedPath, '# OpenAI\n\nOpenAI builds ChatGPT.\n\nOpenAI also offers APIs.', 'utf8');
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'batch-ingest',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+
+    const batchOutput = stdoutChunks.join('');
+    const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+    const sourcePage = await readFile(path.join(root, 'wiki', 'sources', '01-openai-notes.md'), 'utf8');
+    const repos = await createRepositories({
+      rootDir: root,
+      storage: 'mongo',
+      mongoUri,
+      dbName
+    });
+
+    try {
+      const sources = await repos.sources.all();
+      const source = sources[0];
+
+      assert.match(batchOutput, /Processed 1 source files/i);
+      assert.match(batchOutput, /OK 02-openai-notes-renamed\.md -> \[\[01-openai-notes\]\]/i);
+      assert.equal(sources.length, 1);
+      assert.equal(source.localPath, renamedPath);
+      assert.equal(source.metadata.lastSeenLocalPath, renamedPath);
+      assert.deepEqual(
+        source.metadata.localPathHistory,
+        [firstPath, renamedPath]
+      );
+      assert.equal(source.metadata.contentDrift, true);
+      assert.match(reportPage, /Processed: 1/);
+      assert.match(reportPage, /Skipped: 1/);
+      assert.match(sourcePage, /Content drift detected: yes/);
+    } finally {
+      await repos.close();
+    }
   } finally {
     await mongod.stop();
   }
