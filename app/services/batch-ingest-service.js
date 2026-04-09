@@ -86,15 +86,20 @@ export async function batchIngestSources(repos, rootDir, { dir, sourceType = 'fi
       const existingSources = await repos.sources.all();
       const importedSource = findImportedSourceByLocalPath(existingSources, filePath);
       if (importedSource) {
-        const skippedEntry = {
-          fileName: entry.name,
-          filePath,
-          sourceId: importedSource.id,
-          reason: 'already imported from local path'
-        };
-        skipped.push(skippedEntry);
-        entries.push({ status: 'skipped', ...skippedEntry });
-        continue;
+        const currentChecksum = checksumFor(await readFile(filePath, 'utf8'));
+        if (importedSource.checksum !== currentChecksum) {
+          // Re-run ingest so changed local files update the existing source instead of being skipped forever.
+        } else {
+          const skippedEntry = {
+            fileName: entry.name,
+            filePath,
+            sourceId: importedSource.id,
+            reason: 'already imported from local path'
+          };
+          skipped.push(skippedEntry);
+          entries.push({ status: 'skipped', ...skippedEntry });
+          continue;
+        }
       }
 
       const fileText = await readFile(filePath, 'utf8');

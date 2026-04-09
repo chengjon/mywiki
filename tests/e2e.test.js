@@ -194,6 +194,43 @@ test('batch-ingest incremental mode skips renamed files when source content was 
   assert.match(reportPage, /duplicate content already imported/i);
 });
 
+test('batch-ingest incremental mode reprocesses an already imported path when file content changes', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await runCli(['doctor', '--root', root], { stdout });
+  const filePath = path.join(root, 'raw', 'inbox', '01-openai-notes.md');
+  await writeFile(filePath, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  await writeFile(filePath, '# OpenAI\n\nOpenAI builds ChatGPT.\n\nOpenAI also offers APIs.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  const batchOutput = stdoutChunks.join('');
+  const state = JSON.parse(await readFile(path.join(root, 'meta', 'manifests', 'state.json'), 'utf8'));
+  const sourcePage = await readFile(path.join(root, 'wiki', 'sources', '01-openai-notes.md'), 'utf8');
+  const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+
+  assert.match(batchOutput, /Processed 1 source files/i);
+  assert.match(batchOutput, /Skipped 0 source files/i);
+  assert.match(batchOutput, /OK 01-openai-notes\.md -> \[\[01-openai-notes\]\]/i);
+  assert.equal(state.sources.length, 1);
+  assert.equal(state.sources[0].metadata.contentDrift, true);
+  assert.match(sourcePage, /Content drift detected: yes/);
+  assert.match(sourcePage, /Observed versions: 2/);
+  assert.match(reportPage, /Processed: 1/);
+  assert.match(reportPage, /Skipped: 0/);
+});
+
 test('doctor honors governance config overrides and reports missing governance targets', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const stdoutChunks = [];

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { createId, nowIso, slugify, today } from '../config.js';
@@ -20,6 +21,13 @@ function canonicalUrlFor(sourceLike) {
   return sourceLike?.metadata?.canonicalUrl ?? null;
 }
 
+function sameLocalPath(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+  return path.resolve(left) === path.resolve(right);
+}
+
 function mergeChecksumHistory(existingMetadata, existingChecksum, nextChecksum) {
   return [...new Set([...(existingMetadata?.checksumHistory ?? []), existingChecksum, nextChecksum].filter(Boolean))];
 }
@@ -34,6 +42,7 @@ export async function registerSource(repos, input) {
   const duplicate = existingSources.find((source) =>
     (input.uri && source.uri && source.uri === input.uri) ||
     (inputCanonicalUrl && canonicalUrlFor(source) === inputCanonicalUrl) ||
+    (input.localPath && source.localPath && sameLocalPath(source.localPath, input.localPath)) ||
     (rawText && source.checksum === checksum)
   );
 
