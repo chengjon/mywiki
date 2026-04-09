@@ -18,7 +18,7 @@ import { exportPage } from '../export/export-page.js';
 import { createPaths, normalizePageType, slugify } from '../config.js';
 import { batchIngestSources } from '../services/batch-ingest-service.js';
 import { findMergeableQueryPage, findSimilarQueryPages } from '../services/query-page-service.js';
-import { buildDoctorReport, repairRepositoryArtifacts } from '../services/repository-health-service.js';
+import { buildDoctorReport, inspectMongoHealth, repairRepositoryArtifacts } from '../services/repository-health-service.js';
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
@@ -546,9 +546,14 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         const result = await repairRepositoryArtifacts(rootDir, repos, {
           prune: Boolean(flags.prune)
         });
+        const mongoHealth = await inspectMongoHealth(repos);
         stdout.write(`Repaired ${result.exportedPages} wiki exports\n`);
         stdout.write(`Missing wiki exports: ${result.consistency.missingExports.length}\n`);
         stdout.write(`Extra wiki exports: ${result.consistency.extraExports.length}\n`);
+        if (mongoHealth) {
+          stdout.write(`Mongo collections checked: ${mongoHealth.collectionCount}\n`);
+          stdout.write(`Mongo indexes: ${mongoHealth.missingIndexes.length === 0 ? 'ok' : `missing in ${mongoHealth.missingIndexes.join(', ')}`}\n`);
+        }
         if (result.prunedFiles.length > 0) {
           stdout.write(`Pruned wiki exports: ${result.prunedFiles.length}\n`);
         }

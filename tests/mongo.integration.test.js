@@ -236,12 +236,14 @@ test('doctor detects missing mongo indexes and repair restores them', async () =
       '--mongo-uri', mongoUri,
       '--db-name', dbName
     ], { stdout });
+    const repairOutput = stdoutChunks.join('');
 
     const repairedClient = new MongoClient(mongoUri);
     await repairedClient.connect();
 
     try {
       const sourceIndexes = await repairedClient.db(dbName).collection('sources').indexes();
+      assert.match(repairOutput, /Mongo indexes: ok/i);
       assert.ok(sourceIndexes.some((index) => index.name === 'sources_checksum'));
     } finally {
       await repairedClient.close();
