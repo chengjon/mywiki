@@ -21,7 +21,12 @@ function normalizePath(value) {
 
 function findImportedSourceByLocalPath(sources, filePath) {
   const normalizedFilePath = normalizePath(filePath);
-  return sources.find((source) => source.localPath && normalizePath(source.localPath) === normalizedFilePath) ?? null;
+  return sources.find((source) => [
+    source.localPath,
+    ...(source.metadata?.localPathHistory ?? [])
+  ]
+    .filter(Boolean)
+    .some((value) => normalizePath(value) === normalizedFilePath)) ?? null;
 }
 
 function findImportedSourceByChecksum(sources, checksum) {
@@ -105,6 +110,16 @@ export async function batchIngestSources(repos, rootDir, { dir, sourceType = 'fi
       const fileText = await readFile(filePath, 'utf8');
       const duplicateSource = findImportedSourceByChecksum(existingSources, checksumFor(fileText));
       if (duplicateSource) {
+        await repos.sources.upsert({
+          ...duplicateSource,
+          localPath: filePath,
+          aliases: [...new Set([...(duplicateSource.aliases ?? []), title !== duplicateSource.title ? title : null].filter(Boolean))],
+          metadata: {
+            ...(duplicateSource.metadata ?? {}),
+            localPathHistory: [...new Set([...(duplicateSource.metadata?.localPathHistory ?? []), duplicateSource.localPath, filePath].filter(Boolean))],
+            lastSeenLocalPath: filePath
+          }
+        });
         const skippedEntry = {
           fileName: entry.name,
           filePath,

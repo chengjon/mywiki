@@ -45,6 +45,35 @@ test('registerSource deduplicates exact-content repeats and keeps aliases', asyn
   assert.ok(sources[0].aliases.includes('Agent Memory Duplicate'));
 });
 
+test('registerSource tracks local path history when duplicate content arrives from a renamed file', async () => {
+  const repos = createInMemoryRepositories();
+  const first = await registerSource(repos, {
+    title: 'OpenAI Notes',
+    sourceType: 'file',
+    localPath: '/repo/raw/inbox/01-openai-notes.md',
+    rawText: 'same content'
+  });
+  const second = await registerSource(repos, {
+    title: 'OpenAI Notes Renamed',
+    sourceType: 'file',
+    localPath: '/repo/raw/inbox/02-openai-notes-renamed.md',
+    rawText: 'same content'
+  });
+
+  const sources = await repos.sources.all();
+  assert.equal(first.id, second.id);
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].localPath, '/repo/raw/inbox/02-openai-notes-renamed.md');
+  assert.equal(sources[0].metadata.lastSeenLocalPath, '/repo/raw/inbox/02-openai-notes-renamed.md');
+  assert.deepEqual(
+    sources[0].metadata.localPathHistory,
+    [
+      '/repo/raw/inbox/01-openai-notes.md',
+      '/repo/raw/inbox/02-openai-notes-renamed.md'
+    ]
+  );
+});
+
 test('ingestSource extracts entities and source-to-entity relations', async () => {
   const repos = createInMemoryRepositories();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));

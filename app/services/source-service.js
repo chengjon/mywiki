@@ -28,6 +28,23 @@ function sameLocalPath(left, right) {
   return path.resolve(left) === path.resolve(right);
 }
 
+function mergeLocalPathHistory(existingSource, nextLocalPath) {
+  return [...new Set([
+    ...(existingSource?.metadata?.localPathHistory ?? []),
+    existingSource?.localPath,
+    nextLocalPath
+  ].filter(Boolean))];
+}
+
+function sourceHasLocalPath(source, candidatePath) {
+  if (!candidatePath) {
+    return false;
+  }
+  return [source?.localPath, ...(source?.metadata?.localPathHistory ?? [])]
+    .filter(Boolean)
+    .some((value) => sameLocalPath(value, candidatePath));
+}
+
 function mergeChecksumHistory(existingMetadata, existingChecksum, nextChecksum) {
   return [...new Set([...(existingMetadata?.checksumHistory ?? []), existingChecksum, nextChecksum].filter(Boolean))];
 }
@@ -42,7 +59,7 @@ export async function registerSource(repos, input) {
   const duplicate = existingSources.find((source) =>
     (input.uri && source.uri && source.uri === input.uri) ||
     (inputCanonicalUrl && canonicalUrlFor(source) === inputCanonicalUrl) ||
-    (input.localPath && source.localPath && sameLocalPath(source.localPath, input.localPath)) ||
+    (input.localPath && sourceHasLocalPath(source, input.localPath)) ||
     (rawText && source.checksum === checksum)
   );
 
@@ -51,10 +68,11 @@ export async function registerSource(repos, input) {
     const checksumHistory = contentChanged
       ? mergeChecksumHistory(duplicate.metadata, duplicate.checksum, checksum)
       : (duplicate.metadata?.checksumHistory ?? undefined);
+    const localPathHistory = mergeLocalPathHistory(duplicate, input.localPath);
     const merged = {
       ...duplicate,
       uri: duplicate.uri ?? input.uri ?? null,
-      localPath: duplicate.localPath ?? input.localPath ?? null,
+      localPath: input.localPath ?? duplicate.localPath ?? null,
       storedPath: duplicate.storedPath ?? input.storedPath ?? null,
       rawText: contentChanged ? rawText : (duplicate.rawText || rawText),
       checksum: contentChanged ? checksum : (duplicate.checksum ?? checksum),
@@ -63,6 +81,10 @@ export async function registerSource(repos, input) {
       metadata: {
         ...(duplicate.metadata ?? {}),
         ...metadata,
+        ...(input.localPath ? {
+          localPathHistory,
+          lastSeenLocalPath: input.localPath
+        } : {}),
         ...(contentChanged ? {
           contentDrift: true,
           contentVersionCount: checksumHistory.length,
@@ -89,7 +111,13 @@ export async function registerSource(repos, input) {
     checksum,
     aliases: [],
     tags: input.tags ?? [input.sourceType],
-    metadata,
+    metadata: {
+      ...metadata,
+      ...(input.localPath ? {
+        localPathHistory: [input.localPath],
+        lastSeenLocalPath: input.localPath
+      } : {})
+    },
     createdAt: input.createdAt ?? timestamp,
     updatedAt: timestamp,
     capturedAt: input.capturedAt ?? today(),

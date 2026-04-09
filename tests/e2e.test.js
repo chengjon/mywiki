@@ -231,6 +231,49 @@ test('batch-ingest incremental mode reprocesses an already imported path when fi
   assert.match(reportPage, /Skipped: 0/);
 });
 
+test('batch-ingest remembers renamed duplicate paths and reingests later changes into the same source', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await runCli(['doctor', '--root', root], { stdout });
+  const firstPath = path.join(root, 'raw', 'inbox', '01-openai-notes.md');
+  const renamedPath = path.join(root, 'raw', 'inbox', '02-openai-notes-renamed.md');
+  await writeFile(firstPath, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  await writeFile(renamedPath, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  await writeFile(renamedPath, '# OpenAI\n\nOpenAI builds ChatGPT.\n\nOpenAI also offers APIs.', 'utf8');
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  const batchOutput = stdoutChunks.join('');
+  const state = JSON.parse(await readFile(path.join(root, 'meta', 'manifests', 'state.json'), 'utf8'));
+  const source = state.sources[0];
+  const sourcePage = await readFile(path.join(root, 'wiki', 'sources', '01-openai-notes.md'), 'utf8');
+
+  assert.match(batchOutput, /Processed 1 source files/i);
+  assert.match(batchOutput, /OK 02-openai-notes-renamed\.md -> \[\[01-openai-notes\]\]/i);
+  assert.equal(state.sources.length, 1);
+  assert.equal(source.localPath, renamedPath);
+  assert.equal(source.metadata.lastSeenLocalPath, renamedPath);
+  assert.deepEqual(
+    source.metadata.localPathHistory,
+    [firstPath, renamedPath]
+  );
+  assert.equal(source.metadata.contentDrift, true);
+  assert.match(sourcePage, /Content drift detected: yes/);
+});
+
 test('doctor honors governance config overrides and reports missing governance targets', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const stdoutChunks = [];
