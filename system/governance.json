@@ -1,0 +1,11 @@
+{
+  "documents": {
+    "standards": "STANDARDS.md",
+    "agentRules": "AGENTS.md",
+    "readme": "README.md"
+  },
+  "paths": {
+    "proposalSpecsDir": "docs/superpowers/specs",
+    "implementationPlansDir": "docs/superpowers/plans"
+  }
+}

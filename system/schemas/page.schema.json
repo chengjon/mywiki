@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MyWiki Page",
+  "type": "object",
+  "required": ["page_id", "title", "slug", "type", "updated_at"],
+  "properties": {
+    "page_id": { "type": "string" },
+    "title": { "type": "string" },
+    "slug": { "type": "string" },
+    "type": { "type": "string" },
+    "status": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "source_ids": { "type": "array", "items": { "type": "string" } },
+    "entity_ids": { "type": "array", "items": { "type": "string" } },
+    "updated_at": { "type": "string" },
+    "created_at": { "type": "string" }
+  }
+}

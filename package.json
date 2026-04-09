@@ -1,0 +1,30 @@
+{
+  "name": "mywiki",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LLM-driven incremental wiki for Obsidian-friendly Markdown knowledge bases",
+  "bin": {
+    "mywiki": "./bin/mywiki.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "doctor": "node ./bin/mywiki.js doctor",
+    "ingest": "node ./bin/mywiki.js ingest-source",
+    "ask": "node ./bin/mywiki.js ask",
+    "artifact": "node ./bin/mywiki.js file-artifact",
+    "compare": "node ./bin/mywiki.js compare-pages",
+    "timeline": "node ./bin/mywiki.js build-timeline",
+    "lint": "node ./bin/mywiki.js lint-wiki",
+    "overview": "node ./bin/mywiki.js rebuild-overview"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "mongodb": "^6.16.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.1.4"
+  }
+}

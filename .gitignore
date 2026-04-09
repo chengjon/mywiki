@@ -1,0 +1,8 @@
+node_modules/
+.env
+.DS_Store
+coverage/
+meta/manifests/state.json
+system/exports/
+.omx/
+.codex
