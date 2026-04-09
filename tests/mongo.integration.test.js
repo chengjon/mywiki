@@ -309,12 +309,14 @@ test('doctor detects missing mongo collections and repair restores them', async 
       '--mongo-uri', mongoUri,
       '--db-name', dbName
     ], { stdout });
+    const repairOutput = stdoutChunks.join('');
 
     const repairedClient = new MongoClient(mongoUri);
     await repairedClient.connect();
 
     try {
       const collections = await repairedClient.db(dbName).listCollections().toArray();
+      assert.match(repairOutput, /Missing collections: none/i);
       assert.ok(collections.some((collection) => collection.name === 'queries'));
     } finally {
       await repairedClient.close();

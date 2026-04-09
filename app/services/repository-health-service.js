@@ -135,6 +135,13 @@ export function formatMongoIndexStatus(mongoHealth) {
     .join(', ')}`;
 }
 
+export function formatMongoCollectionStatus(mongoHealth) {
+  if (!mongoHealth || mongoHealth.missingCollections.length === 0) {
+    return 'Missing collections: none';
+  }
+  return `Missing collections: ${mongoHealth.missingCollections.join(', ')}`;
+}
+
 const storageComparisonConfig = [
   {
     name: 'sources',
@@ -305,9 +312,7 @@ export async function buildDoctorReport(rootDir, repos, { storage, compareStorag
   if (mongoHealth) {
     lines.push(`Mongo collections checked: ${mongoHealth.collectionCount}`);
     lines.push(formatMongoIndexStatus(mongoHealth));
-    if (mongoHealth.missingCollections.length > 0) {
-      lines.push(`Missing collections: ${mongoHealth.missingCollections.join(', ')}`);
-    }
+    lines.push(formatMongoCollectionStatus(mongoHealth));
   }
 
   const storageConsistency = compareStorage ? await inspectStorageConsistency(rootDir, repos) : null;
