@@ -110,6 +110,9 @@ export async function inspectMongoHealth(repos) {
   const missingIndexes = [];
 
   for (const [collectionName, checks] of Object.entries(requiredMongoIndexChecks)) {
+    if (missingCollections.includes(collectionName)) {
+      continue;
+    }
     const indexes = indexesByCollection[collectionName] ?? [];
     const indexNames = checks
       .filter(({ check }) => !indexes.some((index) => check(index)))

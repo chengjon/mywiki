@@ -299,6 +299,7 @@ test('doctor detects missing mongo collections and repair restores them', async 
     ], { stdout });
     const doctorOutput = stdoutChunks.join('');
 
+    assert.match(doctorOutput, /Mongo indexes: ok/i);
     assert.match(doctorOutput, /Missing collections: queries/i);
 
     stdoutChunks.length = 0;
