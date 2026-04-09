@@ -243,6 +243,7 @@ test('doctor detects missing mongo indexes and repair restores them', async () =
 
     try {
       const sourceIndexes = await repairedClient.db(dbName).collection('sources').indexes();
+      assert.match(repairOutput, /Repaired mongo indexes: sources \(sources_checksum\)/i);
       assert.match(repairOutput, /Mongo indexes: ok/i);
       assert.ok(sourceIndexes.some((index) => index.name === 'sources_checksum'));
     } finally {
@@ -317,6 +318,7 @@ test('doctor detects missing mongo collections and repair restores them', async 
 
     try {
       const collections = await repairedClient.db(dbName).listCollections().toArray();
+      assert.match(repairOutput, /Repaired mongo collections: queries/i);
       assert.match(repairOutput, /Missing collections: none/i);
       assert.ok(collections.some((collection) => collection.name === 'queries'));
     } finally {

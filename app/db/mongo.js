@@ -134,6 +134,10 @@ async function ensureMongoIndexes(db) {
   ]);
 }
 
+async function ensureMongoHealth(db) {
+  await ensureMongoIndexes(db);
+}
+
 export async function createMongoRepositories({ mongoUri, dbName = 'mywiki', ensureIndexes = true }) {
   if (!mongoUri) {
     throw new Error('MONGODB_URI is required when storage is set to mongo');
@@ -158,6 +162,9 @@ export async function createMongoRepositories({ mongoUri, dbName = 'mywiki', ens
     jobs: createMongoCollection(db.collection('jobs')),
     auditLog: createMongoCollection(db.collection('audit_log')),
     diagnostics: {
+      async ensureHealth() {
+        await ensureMongoHealth(db);
+      },
       async listCollections() {
         return db.listCollections().toArray();
       },

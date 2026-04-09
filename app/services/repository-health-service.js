@@ -145,6 +145,32 @@ export function formatMongoCollectionStatus(mongoHealth) {
   return `Missing collections: ${mongoHealth.missingCollections.join(', ')}`;
 }
 
+export function summarizeMongoRepairs(before, after) {
+  if (!before || !after) {
+    return {
+      repairedCollections: [],
+      repairedIndexes: []
+    };
+  }
+
+  const repairedCollections = before.missingCollections
+    .filter((name) => !after.missingCollections.includes(name));
+
+  const afterIndexMap = new Map(after.missingIndexes.map((entry) => [entry.collectionName, new Set(entry.indexNames)]));
+  const repairedIndexes = before.missingIndexes
+    .map((entry) => {
+      const remaining = afterIndexMap.get(entry.collectionName) ?? new Set();
+      const restored = entry.indexNames.filter((name) => !remaining.has(name));
+      return restored.length > 0 ? { collectionName: entry.collectionName, indexNames: restored } : null;
+    })
+    .filter(Boolean);
+
+  return {
+    repairedCollections,
+    repairedIndexes
+  };
+}
+
 const storageComparisonConfig = [
   {
     name: 'sources',

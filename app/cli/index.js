@@ -23,6 +23,7 @@ import {
   formatMongoCollectionStatus,
   formatMongoIndexStatus,
   inspectMongoHealth,
+  summarizeMongoRepairs,
   repairRepositoryArtifacts
 } from '../services/repository-health-service.js';
 
@@ -373,7 +374,9 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
     return { ok: true, rootDir };
   }
 
-  const repoOptions = command === 'doctor' ? { ensureIndexes: false } : {};
+  const repoOptions = command === 'doctor' || command === 'repair'
+    ? { ensureIndexes: false }
+    : {};
 
   return withRepositories(rootDir, flags, env, async (repos) => {
     switch (command) {
@@ -549,14 +552,27 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         return { suggestions };
       }
       case 'repair': {
+        const mongoHealthBefore = await inspectMongoHealth(repos);
+        if (mongoHealthBefore && repos.diagnostics?.ensureHealth) {
+          await repos.diagnostics.ensureHealth();
+        }
         const result = await repairRepositoryArtifacts(rootDir, repos, {
           prune: Boolean(flags.prune)
         });
         const mongoHealth = await inspectMongoHealth(repos);
+        const mongoRepairs = summarizeMongoRepairs(mongoHealthBefore, mongoHealth);
         stdout.write(`Repaired ${result.exportedPages} wiki exports\n`);
         stdout.write(`Missing wiki exports: ${result.consistency.missingExports.length}\n`);
         stdout.write(`Extra wiki exports: ${result.consistency.extraExports.length}\n`);
         if (mongoHealth) {
+          if (mongoRepairs.repairedCollections.length > 0) {
+            stdout.write(`Repaired mongo collections: ${mongoRepairs.repairedCollections.join(', ')}\n`);
+          }
+          if (mongoRepairs.repairedIndexes.length > 0) {
+            stdout.write(`Repaired mongo indexes: ${mongoRepairs.repairedIndexes
+              .map(({ collectionName, indexNames }) => `${collectionName} (${indexNames.join(', ')})`)
+              .join(', ')}\n`);
+          }
           stdout.write(`Mongo collections checked: ${mongoHealth.collectionCount}\n`);
           stdout.write(`${formatMongoIndexStatus(mongoHealth)}\n`);
           stdout.write(`${formatMongoCollectionStatus(mongoHealth)}\n`);
