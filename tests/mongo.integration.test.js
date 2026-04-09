@@ -330,6 +330,52 @@ test('doctor detects missing mongo collections and repair restores them', async 
   }
 });
 
+
+test('repair reports when no mongo repairs are needed', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const file = path.join(root, 'openai-note.md');
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_no_mongo_repairs_needed_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await writeFile(file, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  try {
+    await runCli([
+      'ingest-source',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--type', 'file',
+      '--path', file,
+      '--title', 'OpenAI Note'
+    ], { stdout });
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'repair',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+    const repairOutput = stdoutChunks.join('');
+
+    assert.match(repairOutput, /No mongo repairs needed/i);
+    assert.match(repairOutput, /Mongo indexes: ok/i);
+    assert.match(repairOutput, /Missing collections: none/i);
+  } finally {
+    await mongod.stop();
+  }
+});
+
 test('doctor lists extra wiki exports and repair --prune removes them', async () => {
   const mongod = await MongoMemoryServer.create();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));

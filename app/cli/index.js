@@ -573,6 +573,9 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
               .map(({ collectionName, indexNames }) => `${collectionName} (${indexNames.join(', ')})`)
               .join(', ')}\n`);
           }
+          if (mongoRepairs.repairedCollections.length === 0 && mongoRepairs.repairedIndexes.length === 0) {
+            stdout.write('No mongo repairs needed\n');
+          }
           stdout.write(`Mongo collections checked: ${mongoHealth.collectionCount}\n`);
           stdout.write(`${formatMongoIndexStatus(mongoHealth)}\n`);
           stdout.write(`${formatMongoCollectionStatus(mongoHealth)}\n`);
