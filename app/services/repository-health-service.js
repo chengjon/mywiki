@@ -127,6 +127,8 @@ const storageComparisonConfig = [
     keyOf: (record) => record.slug,
     labelOf: (record) => record.slug,
     mismatchChecks: [
+      { label: 'Source local path mismatches', differs: (left, right) => left.localPath !== right.localPath },
+      { label: 'Source checksum mismatches', differs: (left, right) => left.checksum !== right.checksum },
       { label: 'Title mismatches', differs: (left, right) => left.title !== right.title }
     ]
   },

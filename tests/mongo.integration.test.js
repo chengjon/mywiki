@@ -267,7 +267,10 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
 
     const statePath = path.join(root, 'meta', 'manifests', 'state.json');
     const fileState = JSON.parse(await readFile(statePath, 'utf8'));
+    const fileSource = fileState.sources.find((source) => source.slug === 'openai-note');
     const filePage = fileState.pages.find((page) => page.slug === 'openai-note');
+    fileSource.localPath = '/tmp/file-only-openai-note.md';
+    fileSource.checksum = 'file-only-checksum';
     filePage.title = 'OpenAI Note File Variant';
     await writeFile(statePath, JSON.stringify(fileState, null, 2), 'utf8');
 
@@ -307,6 +310,8 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
     assert.match(doctorOutput, /Storage consistency: drift detected/i);
     assert.match(doctorOutput, /Mongo-only sources: anthropic-note/i);
     assert.match(doctorOutput, /Mongo-only pages: .*anthropic-note/i);
+    assert.match(doctorOutput, /Source local path mismatches: openai-note/i);
+    assert.match(doctorOutput, /Source checksum mismatches: openai-note/i);
     assert.match(doctorOutput, /Title mismatches: openai-note/i);
   } finally {
     await mongod.stop();
