@@ -226,7 +226,7 @@ test('doctor detects missing mongo indexes and repair restores them', async () =
     ], { stdout });
     const doctorOutput = stdoutChunks.join('');
 
-    assert.match(doctorOutput, /Mongo indexes: missing in sources/i);
+    assert.match(doctorOutput, /Mongo indexes: missing in sources \(sources_checksum\)/i);
 
     stdoutChunks.length = 0;
     await runCli([

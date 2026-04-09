@@ -111,11 +111,11 @@ export async function inspectMongoHealth(repos) {
 
   for (const [collectionName, checks] of Object.entries(requiredMongoIndexChecks)) {
     const indexes = indexesByCollection[collectionName] ?? [];
-    for (const check of checks) {
-      if (!indexes.some((index) => check(index))) {
-        missingIndexes.push(collectionName);
-        break;
-      }
+    const indexNames = checks
+      .filter(({ check }) => !indexes.some((index) => check(index)))
+      .map(({ name }) => name);
+    if (indexNames.length > 0) {
+      missingIndexes.push({ collectionName, indexNames });
     }
   }
 
@@ -124,6 +124,15 @@ export async function inspectMongoHealth(repos) {
     missingCollections,
     missingIndexes
   };
+}
+
+export function formatMongoIndexStatus(mongoHealth) {
+  if (!mongoHealth || mongoHealth.missingIndexes.length === 0) {
+    return 'Mongo indexes: ok';
+  }
+  return `Mongo indexes: missing in ${mongoHealth.missingIndexes
+    .map(({ collectionName, indexNames }) => `${collectionName} (${indexNames.join(', ')})`)
+    .join(', ')}`;
 }
 
 const storageComparisonConfig = [
@@ -295,7 +304,7 @@ export async function buildDoctorReport(rootDir, repos, { storage, compareStorag
   const mongoHealth = await inspectMongoHealth(repos);
   if (mongoHealth) {
     lines.push(`Mongo collections checked: ${mongoHealth.collectionCount}`);
-    lines.push(`Mongo indexes: ${mongoHealth.missingIndexes.length === 0 ? 'ok' : `missing in ${mongoHealth.missingIndexes.join(', ')}`}`);
+    lines.push(formatMongoIndexStatus(mongoHealth));
     if (mongoHealth.missingCollections.length > 0) {
       lines.push(`Missing collections: ${mongoHealth.missingCollections.join(', ')}`);
     }

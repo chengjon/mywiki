@@ -44,39 +44,39 @@ export const requiredMongoCollections = [
 
 export const requiredMongoIndexChecks = {
   sources: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.slug === 1,
-    (index) => index.key?.localPath === 1,
-    (index) => index.key?.checksum === 1,
-    (index) => index.key?.uri === 1,
-    (index) => index.key?.['metadata.canonicalUrl'] === 1
+    { name: 'sources_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'sources_slug', check: (index) => index.key?.slug === 1 },
+    { name: 'sources_local_path', check: (index) => index.key?.localPath === 1 },
+    { name: 'sources_checksum', check: (index) => index.key?.checksum === 1 },
+    { name: 'sources_uri', check: (index) => index.key?.uri === 1 },
+    { name: 'sources_canonical_url', check: (index) => index.key?.['metadata.canonicalUrl'] === 1 }
   ],
   source_chunks: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.sourceId === 1
+    { name: 'source_chunks_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'source_chunks_source_id', check: (index) => index.key?.sourceId === 1 }
   ],
   pages: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.slug === 1,
-    (index) => index.key?.type === 1 && index.key?.slug === 1
+    { name: 'pages_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'pages_slug', check: (index) => index.key?.slug === 1 },
+    { name: 'pages_type_slug', check: (index) => index.key?.type === 1 && index.key?.slug === 1 }
   ],
   entities: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.slug === 1
+    { name: 'entities_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'entities_slug', check: (index) => index.key?.slug === 1 }
   ],
   relations: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.fromId === 1 && index.key?.relationType === 1
+    { name: 'relations_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'relations_from_relation_type', check: (index) => index.key?.fromId === 1 && index.key?.relationType === 1 }
   ],
   queries: [
-    (index) => index.key?.id === 1
+    { name: 'queries_id_unique', check: (index) => index.key?.id === 1 }
   ],
   jobs: [
-    (index) => index.key?.id === 1
+    { name: 'jobs_id_unique', check: (index) => index.key?.id === 1 }
   ],
   audit_log: [
-    (index) => index.key?.id === 1,
-    (index) => index.key?.createdAt === 1
+    { name: 'audit_log_id_unique', check: (index) => index.key?.id === 1 },
+    { name: 'audit_log_created_at', check: (index) => index.key?.createdAt === 1 }
   ]
 };
 
