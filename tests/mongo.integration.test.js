@@ -273,7 +273,8 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
     fileSource.checksum = 'file-only-checksum';
     fileSource.metadata = {
       ...(fileSource.metadata ?? {}),
-      lastSeenLocalPath: '/tmp/file-only-last-seen.md'
+      lastSeenLocalPath: '/tmp/file-only-last-seen.md',
+      localPathHistory: ['/tmp/file-only-history.md']
     };
     filePage.title = 'OpenAI Note File Variant';
     await writeFile(statePath, JSON.stringify(fileState, null, 2), 'utf8');
@@ -316,6 +317,7 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
     assert.match(doctorOutput, /Mongo-only pages: .*anthropic-note/i);
     assert.match(doctorOutput, /Source local path mismatches: openai-note/i);
     assert.match(doctorOutput, /Source last seen path mismatches: openai-note/i);
+    assert.match(doctorOutput, /Source path history mismatches: openai-note/i);
     assert.match(doctorOutput, /Source checksum mismatches: openai-note/i);
     assert.match(doctorOutput, /Title mismatches: openai-note/i);
   } finally {

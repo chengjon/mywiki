@@ -77,6 +77,12 @@ function expectedWikiFiles(rootDir, pages) {
   return pages.map((page) => path.join(rootDir, 'wiki', pageDirectoryName(page.type), `${page.slug}.md`));
 }
 
+function sameStringArray(left, right) {
+  const leftValues = Array.isArray(left) ? left : [];
+  const rightValues = Array.isArray(right) ? right : [];
+  return JSON.stringify(leftValues) === JSON.stringify(rightValues);
+}
+
 export async function inspectExportConsistency(rootDir, repos) {
   const pages = await repos.pages.all();
   const expected = expectedWikiFiles(rootDir, pages);
@@ -131,6 +137,10 @@ const storageComparisonConfig = [
       {
         label: 'Source last seen path mismatches',
         differs: (left, right) => left.metadata?.lastSeenLocalPath !== right.metadata?.lastSeenLocalPath
+      },
+      {
+        label: 'Source path history mismatches',
+        differs: (left, right) => !sameStringArray(left.metadata?.localPathHistory, right.metadata?.localPathHistory)
       },
       { label: 'Source checksum mismatches', differs: (left, right) => left.checksum !== right.checksum },
       { label: 'Title mismatches', differs: (left, right) => left.title !== right.title }
