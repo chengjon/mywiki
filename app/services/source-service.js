@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { createId, nowIso, slugify, today } from '../config.js';
 
-function checksumFor(text) {
+export function checksumFor(text) {
   return createHash('sha256').update(String(text ?? ''), 'utf8').digest('hex');
 }
 

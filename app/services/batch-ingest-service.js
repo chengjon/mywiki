@@ -5,6 +5,7 @@ import { createPaths } from '../config.js';
 import { finalizeRepositoryArtifacts, ingestSource } from './ingest-service.js';
 import { appendAuditEvent } from './audit-service.js';
 import { writeIfChanged } from '../fs.js';
+import { checksumFor } from './source-service.js';
 
 const supportedExtensions = new Set(['.md', '.markdown', '.txt']);
 const supportedSourceTypes = new Set(['file', 'note']);
@@ -21,6 +22,10 @@ function normalizePath(value) {
 function findImportedSourceByLocalPath(sources, filePath) {
   const normalizedFilePath = normalizePath(filePath);
   return sources.find((source) => source.localPath && normalizePath(source.localPath) === normalizedFilePath) ?? null;
+}
+
+function findImportedSourceByChecksum(sources, checksum) {
+  return sources.find((source) => source.checksum && source.checksum === checksum) ?? null;
 }
 
 function renderBatchIngestReport({ directory, mode, processed, skipped, failed }) {
@@ -78,13 +83,28 @@ export async function batchIngestSources(repos, rootDir, { dir, sourceType = 'fi
     const filePath = path.join(targetDir, entry.name);
     const title = titleFromFileName(entry.name);
     if (mode === 'incremental') {
-      const importedSource = findImportedSourceByLocalPath(await repos.sources.all(), filePath);
+      const existingSources = await repos.sources.all();
+      const importedSource = findImportedSourceByLocalPath(existingSources, filePath);
       if (importedSource) {
         const skippedEntry = {
           fileName: entry.name,
           filePath,
           sourceId: importedSource.id,
           reason: 'already imported from local path'
+        };
+        skipped.push(skippedEntry);
+        entries.push({ status: 'skipped', ...skippedEntry });
+        continue;
+      }
+
+      const fileText = await readFile(filePath, 'utf8');
+      const duplicateSource = findImportedSourceByChecksum(existingSources, checksumFor(fileText));
+      if (duplicateSource) {
+        const skippedEntry = {
+          fileName: entry.name,
+          filePath,
+          sourceId: duplicateSource.id,
+          reason: 'duplicate content already imported'
         };
         skipped.push(skippedEntry);
         entries.push({ status: 'skipped', ...skippedEntry });

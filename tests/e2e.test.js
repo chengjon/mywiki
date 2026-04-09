@@ -161,6 +161,39 @@ test('batch-ingest incremental mode skips imported files and only processes new 
   assert.match(reportPage, /already imported from local path/i);
 });
 
+test('batch-ingest incremental mode skips renamed files when source content was already imported', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await runCli(['doctor', '--root', root], { stdout });
+  await writeFile(path.join(root, 'raw', 'inbox', '01-openai-notes.md'), '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  await writeFile(path.join(root, 'raw', 'inbox', '02-openai-notes-renamed.md'), '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  const batchOutput = stdoutChunks.join('');
+  const state = JSON.parse(await readFile(path.join(root, 'meta', 'manifests', 'state.json'), 'utf8'));
+  const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+
+  assert.match(batchOutput, /Processed 0 source files/i);
+  assert.match(batchOutput, /Skipped 2 source files/i);
+  assert.match(batchOutput, /SKIP 02-openai-notes-renamed\.md \| duplicate content already imported/i);
+  assert.equal(state.sources.length, 1);
+  assert.match(reportPage, /Processed: 0/);
+  assert.match(reportPage, /Skipped: 2/);
+  assert.match(reportPage, /duplicate content already imported/i);
+});
+
 test('doctor honors governance config overrides and reports missing governance targets', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const stdoutChunks = [];
