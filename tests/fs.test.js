@@ -74,3 +74,30 @@ test('ensureRepositoryLayout creates configured governance planning directories'
   assert.equal(await exists(path.join(root, 'governance', 'specs')), true);
   assert.equal(await exists(path.join(root, 'governance', 'plans')), true);
 });
+
+test('ensureRepositoryLayout falls back from out-of-repo governance paths to repo-local defaults', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const outsideDir = path.join(os.tmpdir(), `mywiki-outside-${Date.now()}`);
+  await mkdir(path.join(root, 'system'), { recursive: true });
+  await writeFile(
+    path.join(root, 'system', 'governance.json'),
+    JSON.stringify({
+      documents: {
+        standards: '/etc/passwd',
+        readme: '../outside-readme.md'
+      },
+      paths: {
+        proposalSpecsDir: outsideDir,
+        implementationPlansDir: '../../external-plans'
+      }
+    }, null, 2),
+    'utf8'
+  );
+
+  await ensureRepositoryLayout(root);
+
+  assert.equal(await exists(path.join(root, 'docs', 'superpowers', 'specs')), true);
+  assert.equal(await exists(path.join(root, 'docs', 'superpowers', 'plans')), true);
+  assert.equal(await exists(outsideDir), false);
+  assert.equal(await exists(path.join(path.dirname(root), 'outside-readme.md')), false);
+});
