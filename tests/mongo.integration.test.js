@@ -96,6 +96,10 @@ test('mongo storage mode creates indexes and keeps exported wiki artifacts in sy
       assert.ok(pageIndexes.some((index) => index.key?.slug === 1));
       assert.ok(pageIndexes.some((index) => index.key?.type === 1 && index.key?.slug === 1));
       assert.ok(sourceIndexes.some((index) => index.key?.id === 1));
+      assert.ok(sourceIndexes.some((index) => index.key?.localPath === 1));
+      assert.ok(sourceIndexes.some((index) => index.key?.checksum === 1));
+      assert.ok(sourceIndexes.some((index) => index.key?.uri === 1));
+      assert.ok(sourceIndexes.some((index) => index.key?.['metadata.canonicalUrl'] === 1));
       assert.ok(auditIndexes.some((index) => index.key?.createdAt === 1));
       assert.match(queryPage, /# OpenAI Mongo Query/);
       assert.match(sourcePage, /# OpenAI Note/);

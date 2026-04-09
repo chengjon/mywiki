@@ -45,7 +45,11 @@ export const requiredMongoCollections = [
 export const requiredMongoIndexChecks = {
   sources: [
     (index) => index.key?.id === 1,
-    (index) => index.key?.slug === 1
+    (index) => index.key?.slug === 1,
+    (index) => index.key?.localPath === 1,
+    (index) => index.key?.checksum === 1,
+    (index) => index.key?.uri === 1,
+    (index) => index.key?.['metadata.canonicalUrl'] === 1
   ],
   source_chunks: [
     (index) => index.key?.id === 1,
@@ -81,6 +85,8 @@ async function ensureMongoIndexes(db) {
     db.collection('sources').createIndexes([
       { key: { id: 1 }, name: 'sources_id_unique', unique: true },
       { key: { slug: 1 }, name: 'sources_slug' },
+      { key: { localPath: 1 }, name: 'sources_local_path', sparse: true },
+      { key: { checksum: 1 }, name: 'sources_checksum' },
       { key: { uri: 1 }, name: 'sources_uri', sparse: true },
       { key: { 'metadata.canonicalUrl': 1 }, name: 'sources_canonical_url', sparse: true }
     ]),
