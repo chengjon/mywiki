@@ -157,17 +157,25 @@ export function summarizeMongoRepairs(before, after) {
     .filter((name) => !after.missingCollections.includes(name));
 
   const afterIndexMap = new Map(after.missingIndexes.map((entry) => [entry.collectionName, new Set(entry.indexNames)]));
-  const repairedIndexes = before.missingIndexes
-    .map((entry) => {
-      const remaining = afterIndexMap.get(entry.collectionName) ?? new Set();
-      const restored = entry.indexNames.filter((name) => !remaining.has(name));
-      return restored.length > 0 ? { collectionName: entry.collectionName, indexNames: restored } : null;
-    })
-    .filter(Boolean);
+  const repairedIndexMap = new Map();
+
+  for (const entry of before.missingIndexes) {
+    const remaining = afterIndexMap.get(entry.collectionName) ?? new Set();
+    const restored = entry.indexNames.filter((name) => !remaining.has(name));
+    if (restored.length > 0) {
+      repairedIndexMap.set(entry.collectionName, restored);
+    }
+  }
+
+  for (const collectionName of repairedCollections) {
+    const existing = repairedIndexMap.get(collectionName) ?? [];
+    const requiredIndexNames = (requiredMongoIndexChecks[collectionName] ?? []).map((entry) => entry.name);
+    repairedIndexMap.set(collectionName, [...new Set([...existing, ...requiredIndexNames])]);
+  }
 
   return {
     repairedCollections,
-    repairedIndexes
+    repairedIndexes: [...repairedIndexMap.entries()].map(([collectionName, indexNames]) => ({ collectionName, indexNames }))
   };
 }
 
