@@ -40,11 +40,11 @@ function parseArgs(argv) {
   return { command, flags };
 }
 
-async function withRepositories(rootDir, flags, env, callback) {
+async function withRepositories(rootDir, flags, env, callback, options = {}) {
   const storage = flags.storage ?? env.MYWIKI_STORAGE ?? 'file';
   const mongoUri = flags['mongo-uri'] ?? env.MONGODB_URI;
   const dbName = flags['db-name'] ?? env.MONGODB_DB ?? 'mywiki';
-  const repos = await createRepositories({ rootDir, storage, mongoUri, dbName });
+  const repos = await createRepositories({ rootDir, storage, mongoUri, dbName, ...options });
   try {
     return await callback(repos);
   } finally {
@@ -367,6 +367,8 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
     return { ok: true, rootDir };
   }
 
+  const repoOptions = command === 'doctor' ? { ensureIndexes: false } : {};
+
   return withRepositories(rootDir, flags, env, async (repos) => {
     switch (command) {
       case 'ingest-source': {
@@ -556,5 +558,5 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         stderr.write(`Unknown command: ${command}\n`);
         throw new Error(`Unknown command: ${command}`);
     }
-  });
+  }, repoOptions);
 }

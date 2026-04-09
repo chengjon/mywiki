@@ -180,6 +180,77 @@ test('doctor reports mongo export drift and repair restores missing wiki files',
   }
 });
 
+test('doctor detects missing mongo indexes and repair restores them', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const file = path.join(root, 'openai-note.md');
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_missing_index_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await writeFile(file, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  try {
+    await runCli([
+      'ingest-source',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--type', 'file',
+      '--path', file,
+      '--title', 'OpenAI Note'
+    ], { stdout });
+
+    const client = new MongoClient(mongoUri);
+    await client.connect();
+
+    try {
+      await client.db(dbName).collection('sources').dropIndex('sources_checksum');
+    } finally {
+      await client.close();
+    }
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'doctor',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+    const doctorOutput = stdoutChunks.join('');
+
+    assert.match(doctorOutput, /Mongo indexes: missing in sources/i);
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'repair',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+
+    const repairedClient = new MongoClient(mongoUri);
+    await repairedClient.connect();
+
+    try {
+      const sourceIndexes = await repairedClient.db(dbName).collection('sources').indexes();
+      assert.ok(sourceIndexes.some((index) => index.name === 'sources_checksum'));
+    } finally {
+      await repairedClient.close();
+    }
+  } finally {
+    await mongod.stop();
+  }
+});
+
 test('doctor lists extra wiki exports and repair --prune removes them', async () => {
   const mongod = await MongoMemoryServer.create();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));

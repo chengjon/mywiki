@@ -123,7 +123,7 @@ async function ensureMongoIndexes(db) {
   ]);
 }
 
-export async function createMongoRepositories({ mongoUri, dbName = 'mywiki' }) {
+export async function createMongoRepositories({ mongoUri, dbName = 'mywiki', ensureIndexes = true }) {
   if (!mongoUri) {
     throw new Error('MONGODB_URI is required when storage is set to mongo');
   }
@@ -132,7 +132,9 @@ export async function createMongoRepositories({ mongoUri, dbName = 'mywiki' }) {
   const client = new MongoClient(mongoUri);
   await client.connect();
   const db = client.db(dbName);
-  await ensureMongoIndexes(db);
+  if (ensureIndexes) {
+    await ensureMongoIndexes(db);
+  }
 
   return {
     kind: 'mongo',

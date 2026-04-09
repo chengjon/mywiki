@@ -140,9 +140,9 @@ export async function createFileRepositories(rootDir) {
   };
 }
 
-export async function createRepositories({ rootDir, storage = 'file', mongoUri, dbName }) {
+export async function createRepositories({ rootDir, storage = 'file', mongoUri, dbName, ensureIndexes = true }) {
   if (storage === 'mongo') {
-    return createMongoRepositories({ mongoUri, dbName });
+    return createMongoRepositories({ mongoUri, dbName, ensureIndexes });
   }
   return createFileRepositories(rootDir);
 }
