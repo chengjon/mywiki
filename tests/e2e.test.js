@@ -335,6 +335,72 @@ test('doctor reports unknown governance config keys instead of silently ignoring
   assert.match(doctorOutput, /extraSection/i);
 });
 
+test('doctor rejects absolute governance paths and falls back to repo-local defaults', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await mkdir(path.join(root, 'system'), { recursive: true });
+  await writeFile(
+    path.join(root, 'system', 'governance.json'),
+    JSON.stringify({
+      documents: {
+        standards: '/etc/passwd'
+      },
+      paths: {
+        proposalSpecsDir: '/tmp/mywiki-outside-specs'
+      }
+    }, null, 2),
+    'utf8'
+  );
+
+  await runCli(['doctor', '--root', root], { stdout });
+
+  const doctorOutput = stdoutChunks.join('');
+  assert.match(doctorOutput, /Governance config: schema issues detected/i);
+  assert.match(doctorOutput, /documents\.standards/i);
+  assert.match(doctorOutput, /paths\.proposalSpecsDir/i);
+  assert.match(doctorOutput, /Standards document: STANDARDS\.md \(missing, defaulted\)/);
+  assert.match(doctorOutput, /Proposal specs dir: docs\/superpowers\/specs \(ok, defaulted\)/);
+});
+
+test('doctor rejects governance paths that escape the repository with dot segments', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await mkdir(path.join(root, 'system'), { recursive: true });
+  await writeFile(
+    path.join(root, 'system', 'governance.json'),
+    JSON.stringify({
+      documents: {
+        readme: '../outside-readme.md'
+      },
+      paths: {
+        implementationPlansDir: '../../external-plans'
+      }
+    }, null, 2),
+    'utf8'
+  );
+
+  await runCli(['doctor', '--root', root], { stdout });
+
+  const doctorOutput = stdoutChunks.join('');
+  assert.match(doctorOutput, /Governance config: schema issues detected/i);
+  assert.match(doctorOutput, /documents\.readme/i);
+  assert.match(doctorOutput, /paths\.implementationPlansDir/i);
+  assert.match(doctorOutput, /README document: README\.md \(missing, defaulted\)/);
+  assert.match(doctorOutput, /Implementation plans dir: docs\/superpowers\/plans \(ok, defaulted\)/);
+});
+
 test('lint-wiki writes a report with knowledge health findings', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const file = path.join(root, 'source.md');

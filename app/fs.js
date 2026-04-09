@@ -75,9 +75,20 @@ function collectUnknownKeys(section, allowedKeys, prefix) {
     .map((key) => `${prefix}.${key}`);
 }
 
-function normalizeGovernanceField(parsedSection, defaultsSection, sectionName) {
+function isRepositoryLocalPath(rootDir, candidate) {
+  if (!isNonEmptyString(candidate) || !rootDir || path.isAbsolute(candidate)) {
+    return false;
+  }
+
+  const resolved = path.resolve(rootDir, candidate);
+  const relative = path.relative(rootDir, resolved);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function normalizeGovernanceField(parsedSection, defaultsSection, sectionName, options = {}) {
   const normalized = { ...defaultsSection };
   const issues = [];
+  const { rootDir } = options;
 
   for (const [key, defaultValue] of Object.entries(defaultsSection)) {
     const candidate = parsedSection?.[key];
@@ -86,6 +97,10 @@ function normalizeGovernanceField(parsedSection, defaultsSection, sectionName) {
       continue;
     }
     if (!isNonEmptyString(candidate)) {
+      issues.push(`${sectionName}.${key}`);
+      continue;
+    }
+    if (!isRepositoryLocalPath(rootDir, candidate)) {
       issues.push(`${sectionName}.${key}`);
       continue;
     }
@@ -187,18 +202,18 @@ export async function readGovernanceConfig(rootDir) {
   const paths = createPaths(rootDir);
   const text = await readIfExists(paths.systemGovernance, JSON.stringify(defaultGovernanceConfig, null, 2));
   try {
-    return readGovernanceConfigDiagnosticsFromText(text).config;
+    return readGovernanceConfigDiagnosticsFromText(text, { rootDir }).config;
   } catch {
     return defaultGovernanceConfig;
   }
 }
 
-export function readGovernanceConfigDiagnosticsFromText(text) {
+export function readGovernanceConfigDiagnosticsFromText(text, { rootDir } = {}) {
   try {
     const parsed = JSON.parse(text);
     const merged = mergeGovernanceConfig(parsed);
-    const documents = normalizeGovernanceField(parsed.documents, defaultGovernanceConfig.documents, 'documents');
-    const configPaths = normalizeGovernanceField(parsed.paths, defaultGovernanceConfig.paths, 'paths');
+    const documents = normalizeGovernanceField(parsed.documents, defaultGovernanceConfig.documents, 'documents', { rootDir });
+    const configPaths = normalizeGovernanceField(parsed.paths, defaultGovernanceConfig.paths, 'paths', { rootDir });
     const unknownIssues = [
       ...collectUnknownKeys(parsed, ['documents', 'paths'], 'root'),
       ...collectUnknownKeys(parsed.documents, Object.keys(defaultGovernanceConfig.documents), 'documents'),
@@ -225,5 +240,5 @@ export function readGovernanceConfigDiagnosticsFromText(text) {
 export async function readGovernanceConfigDiagnostics(rootDir) {
   const paths = createPaths(rootDir);
   const text = await readIfExists(paths.systemGovernance, JSON.stringify(defaultGovernanceConfig, null, 2));
-  return readGovernanceConfigDiagnosticsFromText(text);
+  return readGovernanceConfigDiagnosticsFromText(text, { rootDir });
 }
