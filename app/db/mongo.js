@@ -31,6 +31,17 @@ function createMongoCollection(collection) {
   };
 }
 
+async function listCollectionIndexes(collection) {
+  try {
+    return await collection.indexes();
+  } catch (error) {
+    if (error?.codeName === 'NamespaceNotFound' || error?.code === 26) {
+      return [];
+    }
+    throw error;
+  }
+}
+
 export const requiredMongoCollections = [
   'sources',
   'source_chunks',
@@ -153,7 +164,7 @@ export async function createMongoRepositories({ mongoUri, dbName = 'mywiki', ens
       async listIndexes() {
         return Object.fromEntries(
           await Promise.all(
-            requiredMongoCollections.map(async (name) => [name, await db.collection(name).indexes()])
+            requiredMongoCollections.map(async (name) => [name, await listCollectionIndexes(db.collection(name))])
           )
         );
       }
