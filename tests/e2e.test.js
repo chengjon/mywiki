@@ -300,6 +300,43 @@ test('batch-ingest report lists repo-relative paths for custom import directorie
   assert.match(reportPage, /imports\/01-openai-notes\.md \| already imported from local path/i);
 });
 
+test('batch-ingest report keeps stable section order and alphabetical entries', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await runCli(['doctor', '--root', root], { stdout });
+  await writeFile(path.join(root, 'raw', 'inbox', '02-openai-notes.md'), '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+  await writeFile(path.join(root, 'raw', 'inbox', '01-anthropic-notes.md'), '# Anthropic\n\nAnthropic builds Claude.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  await writeFile(path.join(root, 'raw', 'inbox', '03-mistral-notes.md'), '# Mistral\n\nMistral builds assistant models.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root], { stdout });
+
+  const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+  const processedIndex = reportPage.indexOf('## Processed');
+  const skippedIndex = reportPage.indexOf('## Skipped');
+  const failedIndex = reportPage.indexOf('## Failed');
+  const processedEntry = '- raw/inbox/03-mistral-notes.md -> [[03-mistral-notes]]';
+  const firstSkippedEntry = '- raw/inbox/01-anthropic-notes.md | already imported from local path';
+  const secondSkippedEntry = '- raw/inbox/02-openai-notes.md | already imported from local path';
+
+  assert.ok(processedIndex < skippedIndex);
+  assert.ok(skippedIndex < failedIndex);
+  assert.ok(reportPage.includes(processedEntry));
+  assert.ok(reportPage.includes(firstSkippedEntry));
+  assert.ok(reportPage.includes(secondSkippedEntry));
+  assert.ok(reportPage.indexOf(firstSkippedEntry) < reportPage.indexOf(secondSkippedEntry));
+});
+
 test('doctor honors governance config overrides and reports missing governance targets', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const stdoutChunks = [];

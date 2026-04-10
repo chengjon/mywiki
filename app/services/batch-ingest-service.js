@@ -44,7 +44,17 @@ function formatReportPath(rootDir, filePath, fileName) {
     .join('/');
 }
 
+function sortReportItems(rootDir, items) {
+  return [...items].sort((left, right) => (
+    formatReportPath(rootDir, left.filePath, left.fileName)
+      .localeCompare(formatReportPath(rootDir, right.filePath, right.fileName))
+  ));
+}
+
 function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped, failed }) {
+  const sortedProcessed = sortReportItems(rootDir, processed);
+  const sortedSkipped = sortReportItems(rootDir, skipped);
+  const sortedFailed = sortReportItems(rootDir, failed);
   const renderLines = (items, formatter, empty) => (
     items.length > 0
       ? items.map((item) => `- ${formatter(item)}`).join('\n')
@@ -62,15 +72,15 @@ function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped,
     '',
     '## Processed',
     '',
-    renderLines(processed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} -> [[${item.page.slug}]]`, 'None'),
+    renderLines(sortedProcessed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} -> [[${item.page.slug}]]`, 'None'),
     '',
     '## Skipped',
     '',
-    renderLines(skipped, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.reason}`, 'None'),
+    renderLines(sortedSkipped, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.reason}`, 'None'),
     '',
     '## Failed',
     '',
-    renderLines(failed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.error}`, 'None'),
+    renderLines(sortedFailed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.error}`, 'None'),
     ''
   ].join('\n');
 }
