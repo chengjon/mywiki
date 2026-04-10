@@ -1390,6 +1390,34 @@ test('file-answer avoids redundant generic overlap reasons in similar-query conf
   );
 });
 
+test('file-answer hides similarity score when only one similar-query candidate exists', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const openaiFile = path.join(root, 'openai.md');
+  await writeFile(openaiFile, '# OpenAI Platform\n\nOpenAI offers APIs and ChatGPT.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', openaiFile, '--title', 'OpenAI Platform Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain the OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'Summarize the OpenAI platform overview',
+      '--title', 'OpenAI Platform Summary'
+    ]),
+    (error) => {
+      assert.match(error.message, /Similar durable query pages exist:/i);
+      assert.ok(!/Similarity score:/i.test(error.message));
+      return true;
+    }
+  );
+});
+
 test('repeated duplicate ingests do not create extra source pages', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const firstFile = path.join(root, 'first.md');

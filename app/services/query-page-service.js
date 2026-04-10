@@ -129,9 +129,6 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
       if (additionalOverlapTerms.length > 0) {
         reasons.push(`Overlapping terms: ${additionalOverlapTerms.join(', ')}`);
       }
-      if (comparison.score > 0) {
-        reasons.push(`Similarity score: ${comparison.score.toFixed(2)}`);
-      }
       return {
         page,
         score: comparison.score,
@@ -146,5 +143,11 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
       String(left.page.title ?? '').localeCompare(String(right.page.title ?? '')) ||
       String(left.page.slug ?? '').localeCompare(String(right.page.slug ?? ''))
     )
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((candidate, _, candidates) => ({
+      ...candidate,
+      reasons: candidates.length > 1 && candidate.score > 0
+        ? [...candidate.reasons, `Similarity score: ${candidate.score.toFixed(2)}`]
+        : candidate.reasons
+    }));
 }

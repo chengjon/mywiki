@@ -727,3 +727,50 @@ test('findSimilarQueryPages omits redundant overlapping-terms reasons when title
   assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, platform, overview/i.test(reason)));
   assert.ok(!candidate.reasons.some((reason) => /Overlapping terms:/i.test(reason)));
 });
+
+test('findSimilarQueryPages hides similarity score when only one candidate remains', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Platform Summary',
+    question: 'Summarize the OpenAI platform overview'
+  });
+
+  assert.ok(!candidate.reasons.some((reason) => /Similarity score:/i.test(reason)));
+});
+
+test('findSimilarQueryPages keeps similarity scores when multiple candidates compete', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  await upsertPage(repos, {
+    title: 'OpenAI API Overview',
+    slug: 'openai-api-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI API.',
+    details: 'Question: Explain the OpenAI API overview\n\nEvidence:\n- OpenAI offers API docs.'
+  });
+
+  const candidates = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Overview Summary',
+    question: 'Summarize the OpenAI overview'
+  });
+
+  assert.equal(candidates.length, 2);
+  assert.ok(candidates.every((candidate) => candidate.reasons.some((reason) => /Similarity score:/i.test(reason))));
+});
