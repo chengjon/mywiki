@@ -10,8 +10,18 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { runCli } from '../app/cli/index.js';
 import { createRepositories } from '../app/db/repositories.js';
 
+const TEST_MONGO_LAUNCH_TIMEOUT_MS = 30_000;
+
+function createTestMongoServer() {
+  return MongoMemoryServer.create({
+    instance: {
+      launchTimeout: TEST_MONGO_LAUNCH_TIMEOUT_MS
+    }
+  });
+}
+
 test('mongo storage mode persists ingest results through repository adapters', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'mongo-note.md');
   await writeFile(file, '# Anthropic\n\nClaude is built by Anthropic.', 'utf8');
@@ -52,7 +62,7 @@ test('mongo storage mode persists ingest results through repository adapters', a
 });
 
 test('mongo storage mode creates indexes and keeps exported wiki artifacts in sync', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -112,7 +122,7 @@ test('mongo storage mode creates indexes and keeps exported wiki artifacts in sy
 });
 
 test('doctor reports mongo export drift and repair restores missing wiki files', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -183,7 +193,7 @@ test('doctor reports mongo export drift and repair restores missing wiki files',
 });
 
 test('doctor detects missing mongo indexes and repair restores them', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -257,7 +267,7 @@ test('doctor detects missing mongo indexes and repair restores them', async () =
 });
 
 test('doctor detects missing mongo collections and repair restores them', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -335,7 +345,7 @@ test('doctor detects missing mongo collections and repair restores them', async 
 
 
 test('repair reports when no mongo repairs are needed', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -381,7 +391,7 @@ test('repair reports when no mongo repairs are needed', async () => {
 });
 
 test('doctor lists extra wiki exports and repair --prune removes them', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -442,7 +452,7 @@ test('doctor lists extra wiki exports and repair --prune removes them', async ()
 });
 
 test('repair without prune names unpruned extra wiki exports', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -491,7 +501,7 @@ test('repair without prune names unpruned extra wiki exports', async () => {
 });
 
 test('doctor and repair report repo-relative paths for duplicate extra export basenames', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -557,7 +567,7 @@ test('doctor and repair report repo-relative paths for duplicate extra export ba
 });
 
 test('repair --prune handles combined wiki export drift and mongo collection repair in one run', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const file = path.join(root, 'openai-note.md');
   const mongoUri = mongod.getUri();
@@ -643,7 +653,7 @@ test('repair --prune handles combined wiki export drift and mongo collection rep
 });
 
 test('doctor --compare-storage reports file and mongo drift with concrete slugs', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const openaiFile = path.join(root, 'openai-note.md');
   const anthropicFile = path.join(root, 'anthropic-note.md');
@@ -729,7 +739,7 @@ test('doctor --compare-storage reports file and mongo drift with concrete slugs'
 });
 
 test('mongo batch-ingest remembers renamed duplicate paths and reingests later changes into the same source', async () => {
-  const mongod = await MongoMemoryServer.create();
+  const mongod = await createTestMongoServer();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
   const mongoUri = mongod.getUri();
   const dbName = 'mywiki_mongo_batch_path_history_test';
