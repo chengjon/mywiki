@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 
 import { createInMemoryRepositories } from '../app/db/repositories.js';
 import { registerSource } from '../app/services/source-service.js';
@@ -11,6 +11,7 @@ import { upsertPage } from '../app/services/page-service.js';
 import { createComparisonPage } from '../app/services/comparison-service.js';
 import { createTimelinePage } from '../app/services/timeline-service.js';
 import { classifyArtifactQuestion, resolveArtifactRoute } from '../app/services/artifact-router.js';
+import { batchIngestSources } from '../app/services/batch-ingest-service.js';
 import { findMergeableQueryPage, findSimilarQueryPages } from '../app/services/query-page-service.js';
 import { ensureRepositoryLayout } from '../app/fs.js';
 
@@ -24,6 +25,45 @@ test('registerSource stores normalized source metadata', async () => {
 
   assert.equal(source.slug, 'test-source');
   assert.equal((await repos.sources.all()).length, 1);
+});
+
+test('batchIngestSources keeps failed report entries readable without mutating raw errors', async () => {
+  const repos = createInMemoryRepositories();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const importDir = path.join(
+    root,
+    'imports',
+    'very-long-segment-name-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'nested-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  );
+  const filePath = path.join(
+    importDir,
+    '01-failing-note-with-a-long-name-cccccccccccccccccccccccccccccccccccccccc.md'
+  );
+  const repeatedDetail = 'detail '.repeat(24).trim();
+
+  await ensureRepositoryLayout(root);
+  await mkdir(importDir, { recursive: true });
+  await writeFile(filePath, '# Broken Source\n\nThis source is expected to fail during repository persistence.', 'utf8');
+
+  const originalUpsert = repos.sources.upsert;
+  repos.sources.upsert = async (record, field = 'id') => {
+    if (record.localPath === filePath) {
+      throw new Error(`Deliberate repository failure while importing ${filePath} because ${repeatedDetail}`);
+    }
+    return originalUpsert(record, field);
+  };
+
+  const result = await batchIngestSources(repos, root, { dir: importDir });
+  const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+
+  assert.equal(result.processed.length, 0);
+  assert.equal(result.failed.length, 1);
+  assert.match(result.failed[0].error, new RegExp(filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(reportPage, /Failed: 1/);
+  assert.match(reportPage, /imports\/very-long-segment-name-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\//);
+  assert.doesNotMatch(reportPage, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(reportPage, /\.\.\./);
 });
 
 test('registerSource deduplicates exact-content repeats and keeps aliases', async () => {

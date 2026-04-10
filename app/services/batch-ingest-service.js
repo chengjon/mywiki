@@ -51,6 +51,23 @@ function sortReportItems(rootDir, items) {
   ));
 }
 
+function truncateReportText(value, maxLength = 200) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatReportError(rootDir, error) {
+  const normalizedRoot = normalizePath(rootDir).split(path.sep).join('/');
+  const normalizedError = String(error ?? '')
+    .split(path.sep)
+    .join('/')
+    .replaceAll(`${normalizedRoot}/`, '');
+
+  return truncateReportText(normalizedError);
+}
+
 function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped, failed }) {
   const sortedProcessed = sortReportItems(rootDir, processed);
   const sortedSkipped = sortReportItems(rootDir, skipped);
@@ -80,7 +97,7 @@ function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped,
     '',
     '## Failed',
     '',
-    renderLines(sortedFailed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.error}`, 'None'),
+    renderLines(sortedFailed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${formatReportError(rootDir, item.error)}`, 'None'),
     ''
   ].join('\n');
 }
