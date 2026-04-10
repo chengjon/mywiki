@@ -20,6 +20,7 @@ import { batchIngestSources } from '../services/batch-ingest-service.js';
 import { findMergeableQueryPage, findSimilarQueryPages } from '../services/query-page-service.js';
 import {
   buildDoctorReport,
+  formatMongoCollectionCheckStatus,
   formatMongoCollectionStatus,
   formatMongoIndexStatus,
   inspectMongoHealth,
@@ -576,7 +577,7 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
           if (mongoRepairs.repairedCollections.length === 0 && mongoRepairs.repairedIndexes.length === 0) {
             stdout.write('No mongo repairs needed\n');
           }
-          stdout.write(`Mongo collections checked: ${mongoHealth.collectionCount}\n`);
+          stdout.write(`${formatMongoCollectionCheckStatus(mongoHealth)}\n`);
           stdout.write(`${formatMongoIndexStatus(mongoHealth)}\n`);
           stdout.write(`${formatMongoCollectionStatus(mongoHealth)}\n`);
         }

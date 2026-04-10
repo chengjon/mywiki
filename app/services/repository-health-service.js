@@ -124,9 +124,17 @@ export async function inspectMongoHealth(repos) {
 
   return {
     collectionCount: collections.length,
+    expectedCollectionCount: requiredMongoCollections.length,
     missingCollections,
     missingIndexes
   };
+}
+
+export function formatMongoCollectionCheckStatus(mongoHealth) {
+  if (!mongoHealth) {
+    return 'Mongo collections checked: 0/0';
+  }
+  return `Mongo collections checked: ${mongoHealth.collectionCount}/${mongoHealth.expectedCollectionCount}`;
 }
 
 export function formatMongoIndexStatus(mongoHealth) {
@@ -347,7 +355,7 @@ export async function buildDoctorReport(rootDir, repos, { storage, compareStorag
 
   const mongoHealth = await inspectMongoHealth(repos);
   if (mongoHealth) {
-    lines.push(`Mongo collections checked: ${mongoHealth.collectionCount}`);
+    lines.push(formatMongoCollectionCheckStatus(mongoHealth));
     lines.push(formatMongoIndexStatus(mongoHealth));
     lines.push(formatMongoCollectionStatus(mongoHealth));
   }
