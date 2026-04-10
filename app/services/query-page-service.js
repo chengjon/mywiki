@@ -52,6 +52,37 @@ function formatReasonValue(value, maxLength = 72) {
   return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+function buildSimilarityReasons({ incomingTitle, pageTitle, storedQuestion, titleComparison, questionComparison, comparison }) {
+  const reasons = [];
+  const normalizedIncomingTitle = normalizeComparableText(incomingTitle);
+  const normalizedExistingTitle = normalizeComparableText(pageTitle);
+  const showExistingTitle = pageTitle && normalizedExistingTitle !== normalizedIncomingTitle;
+
+  if (showExistingTitle) {
+    reasons.push(`Existing title: ${formatReasonValue(pageTitle)}`);
+  }
+  if (storedQuestion) {
+    reasons.push(`Existing question: ${formatReasonValue(storedQuestion)}`);
+  }
+  if (titleComparison.overlapTerms.length > 0) {
+    reasons.push(`Title overlap: ${titleComparison.overlapTerms.join(', ')}`);
+  }
+  if (questionComparison.overlapTerms.length > 0) {
+    reasons.push(`Question overlap: ${questionComparison.overlapTerms.join(', ')}`);
+  }
+
+  const explainedOverlapTerms = new Set([
+    ...titleComparison.overlapTerms,
+    ...questionComparison.overlapTerms
+  ]);
+  const additionalOverlapTerms = comparison.overlapTerms.filter((term) => !explainedOverlapTerms.has(term));
+  if (additionalOverlapTerms.length > 0) {
+    reasons.push(`Overlapping terms: ${additionalOverlapTerms.join(', ')}`);
+  }
+
+  return reasons;
+}
+
 export async function findMergeableQueryPage(repos, { slug, explicitSlug = false, title, question }) {
   const queryPages = (await repos.pages.all()).filter((page) => page.type === 'query');
   const normalizedQuestion = normalizeComparableText(question);
@@ -110,35 +141,18 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
         tokenizeComparableText(question),
         tokenizeComparableText(storedQuestion)
       );
-      const reasons = [];
-      const normalizedIncomingTitle = normalizeComparableText(title);
-      const normalizedExistingTitle = normalizeComparableText(page.title);
-      const showExistingTitle = page.title && normalizedExistingTitle !== normalizedIncomingTitle;
-      if (showExistingTitle) {
-        reasons.push(`Existing title: ${formatReasonValue(page.title)}`);
-      }
-      if (storedQuestion) {
-        reasons.push(`Existing question: ${formatReasonValue(storedQuestion)}`);
-      }
-      if (titleComparison.overlapTerms.length > 0) {
-        reasons.push(`Title overlap: ${titleComparison.overlapTerms.join(', ')}`);
-      }
-      if (questionComparison.overlapTerms.length > 0) {
-        reasons.push(`Question overlap: ${questionComparison.overlapTerms.join(', ')}`);
-      }
-      const explainedOverlapTerms = new Set([
-        ...titleComparison.overlapTerms,
-        ...questionComparison.overlapTerms
-      ]);
-      const additionalOverlapTerms = comparison.overlapTerms.filter((term) => !explainedOverlapTerms.has(term));
-      if (additionalOverlapTerms.length > 0) {
-        reasons.push(`Overlapping terms: ${additionalOverlapTerms.join(', ')}`);
-      }
       return {
         page,
         score: comparison.score,
         overlapTerms: comparison.overlapTerms,
-        reasons
+        reasons: buildSimilarityReasons({
+          incomingTitle: title,
+          pageTitle: page.title,
+          storedQuestion,
+          titleComparison,
+          questionComparison,
+          comparison
+        })
       };
     })
     .filter((candidate) => candidate.overlapTerms.length >= 2 && candidate.score >= 0.5)

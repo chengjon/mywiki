@@ -815,3 +815,27 @@ test('findSimilarQueryPages omits existing-title reason when the incoming title 
   assert.ok(candidate.reasons.some((reason) => /Existing question:/i.test(reason)));
   assert.ok(!candidate.reasons.some((reason) => /Existing title:/i.test(reason)));
 });
+
+test('findSimilarQueryPages keeps reason categories in a stable display order', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Platform Summary',
+    question: 'Summarize the OpenAI platform overview'
+  });
+
+  assert.deepEqual(candidate.reasons, [
+    'Existing title: OpenAI Platform Overview',
+    'Existing question: Explain the OpenAI platform overview',
+    'Title overlap: openai, platform',
+    'Question overlap: openai, overview, platform'
+  ]);
+});
