@@ -1225,7 +1225,7 @@ test('file-answer surfaces similar durable query conflicts and requires explicit
       '--question', 'Summarize the OpenAI platform overview',
       '--title', 'OpenAI Platform Summary'
     ]),
-    /Similar durable query pages exist/
+    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview/i
   );
 
   await runCli([

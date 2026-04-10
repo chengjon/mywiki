@@ -78,9 +78,30 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
   const queryPages = (await repos.pages.all()).filter((page) => page.type === 'query');
   return queryPages
     .map((page) => {
-      const existingTokens = tokenizeComparableText(`${page.title ?? ''} ${extractStoredQuestion(page)}`);
+      const storedQuestion = extractStoredQuestion(page);
+      const existingTokens = tokenizeComparableText(`${page.title ?? ''} ${storedQuestion}`);
       const comparison = compareTokenSets(incomingTokens, existingTokens);
+      const titleComparison = compareTokenSets(
+        tokenizeComparableText(title),
+        tokenizeComparableText(page.title)
+      );
+      const questionComparison = compareTokenSets(
+        tokenizeComparableText(question),
+        tokenizeComparableText(storedQuestion)
+      );
       const reasons = [];
+      if (page.title) {
+        reasons.push(`Existing title: ${page.title}`);
+      }
+      if (storedQuestion) {
+        reasons.push(`Existing question: ${storedQuestion}`);
+      }
+      if (titleComparison.overlapTerms.length > 0) {
+        reasons.push(`Title overlap: ${titleComparison.overlapTerms.join(', ')}`);
+      }
+      if (questionComparison.overlapTerms.length > 0) {
+        reasons.push(`Question overlap: ${questionComparison.overlapTerms.join(', ')}`);
+      }
       if (comparison.overlapTerms.length > 0) {
         reasons.push(`Overlapping terms: ${comparison.overlapTerms.join(', ')}`);
       }

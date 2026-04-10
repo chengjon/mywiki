@@ -613,4 +613,7 @@ test('findSimilarQueryPages returns explainable similarity candidates without ex
   assert.ok(candidates[0].overlapTerms.includes('openai'));
   assert.ok(candidates[0].overlapTerms.includes('platform'));
   assert.ok(candidates[0].reasons.some((reason) => /overlapping terms/i.test(reason)));
+  assert.ok(candidates[0].reasons.some((reason) => /existing title: openai platform overview/i.test(reason)));
+  assert.ok(candidates[0].reasons.some((reason) => /existing question: explain the openai platform overview/i.test(reason)));
+  assert.ok(candidates[0].reasons.some((reason) => /question overlap/i.test(reason)));
 });
