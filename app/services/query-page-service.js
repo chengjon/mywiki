@@ -121,8 +121,13 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
       if (questionComparison.overlapTerms.length > 0) {
         reasons.push(`Question overlap: ${questionComparison.overlapTerms.join(', ')}`);
       }
-      if (comparison.overlapTerms.length > 0) {
-        reasons.push(`Overlapping terms: ${comparison.overlapTerms.join(', ')}`);
+      const explainedOverlapTerms = new Set([
+        ...titleComparison.overlapTerms,
+        ...questionComparison.overlapTerms
+      ]);
+      const additionalOverlapTerms = comparison.overlapTerms.filter((term) => !explainedOverlapTerms.has(term));
+      if (additionalOverlapTerms.length > 0) {
+        reasons.push(`Overlapping terms: ${additionalOverlapTerms.join(', ')}`);
       }
       if (comparison.score > 0) {
         reasons.push(`Similarity score: ${comparison.score.toFixed(2)}`);

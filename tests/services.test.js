@@ -640,10 +640,11 @@ test('findSimilarQueryPages returns explainable similarity candidates without ex
   assert.ok(candidates[0].score >= 0.5);
   assert.ok(candidates[0].overlapTerms.includes('openai'));
   assert.ok(candidates[0].overlapTerms.includes('platform'));
-  assert.ok(candidates[0].reasons.some((reason) => /overlapping terms/i.test(reason)));
   assert.ok(candidates[0].reasons.some((reason) => /existing title: openai platform overview/i.test(reason)));
   assert.ok(candidates[0].reasons.some((reason) => /existing question: explain the openai platform overview/i.test(reason)));
+  assert.ok(candidates[0].reasons.some((reason) => /title overlap/i.test(reason)));
   assert.ok(candidates[0].reasons.some((reason) => /question overlap/i.test(reason)));
+  assert.ok(!candidates[0].reasons.some((reason) => /overlapping terms/i.test(reason)));
 });
 
 test('findSimilarQueryPages sorts tied candidates by slug for stable conflict output', async () => {
@@ -704,4 +705,25 @@ test('findSimilarQueryPages truncates long existing title and question reasons f
   assert.ok(existingTitleReason.length < longTitle.length + 'Existing title: '.length);
   assert.ok(existingQuestionReason.length < longQuestion.length + 'Existing question: '.length);
   assert.ok(!existingQuestionReason.includes('enterprise controls, and integration workflows for a new team evaluating adoption today.'));
+});
+
+test('findSimilarQueryPages omits redundant overlapping-terms reasons when title and question overlaps already explain them', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Platform Summary',
+    question: 'Summarize the OpenAI platform overview'
+  });
+
+  assert.ok(candidate.reasons.some((reason) => /Title overlap: openai, platform/i.test(reason)));
+  assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, platform, overview/i.test(reason)));
+  assert.ok(!candidate.reasons.some((reason) => /Overlapping terms:/i.test(reason)));
 });

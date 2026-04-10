@@ -1360,6 +1360,36 @@ test('file-answer truncates long similar-query reasons to keep conflict output r
   );
 });
 
+test('file-answer avoids redundant generic overlap reasons in similar-query conflicts', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const sourceFile = path.join(root, 'openai.md');
+
+  await writeFile(sourceFile, '# OpenAI\n\nOpenAI offers platform, API, and overview materials.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', sourceFile, '--title', 'OpenAI Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain the OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'Summarize the OpenAI platform overview',
+      '--title', 'OpenAI Platform Summary'
+    ]),
+    (error) => {
+      assert.match(error.message, /Title overlap: openai, platform/i);
+      assert.match(error.message, /Question overlap: openai, platform, overview/i);
+      assert.ok(!/Overlapping terms:/i.test(error.message));
+      return true;
+    }
+  );
+});
+
 test('repeated duplicate ingests do not create extra source pages', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const firstFile = path.join(root, 'first.md');
