@@ -1202,7 +1202,7 @@ test('file-answer merges repeated durable queries instead of creating duplicates
   assert.match(queryPage, /# OpenAI Identity Query/);
   assert.match(queryPage, /Merged durable query update/i);
   assert.match(logPage, /query \| OpenAI Identity Query/i);
-  assert.match(logPage, /Updated existing durable query page/i);
+  assert.match(logPage, /Updated existing durable query page.*using question match/i);
 });
 
 test('file-answer surfaces similar durable query conflicts and requires explicit slug control', async () => {
@@ -1239,9 +1239,11 @@ test('file-answer surfaces similar durable query conflicts and requires explicit
   const state = JSON.parse(await readFile(path.join(root, 'meta', 'manifests', 'state.json'), 'utf8'));
   const queryPages = state.pages.filter((page) => page.type === 'query');
   const queryPage = await readFile(path.join(root, 'wiki', 'queries', 'openai-platform-overview.md'), 'utf8');
+  const logPage = await readFile(path.join(root, 'meta', 'log.md'), 'utf8');
 
   assert.equal(queryPages.length, 1);
   assert.match(queryPage, /Merged durable query update/i);
+  assert.match(logPage, /Updated existing durable query page.*using slug match/i);
 });
 
 test('file-answer does not auto-merge same-title durable queries when the stored question differs', async () => {

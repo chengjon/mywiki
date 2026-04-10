@@ -308,7 +308,7 @@ async function fileAnswerPage({ repos, rootDir, question, title, slug }) {
     eventType: 'query',
     title: page.title,
     details: mergeTarget
-      ? `Updated existing durable query page [[${page.slug}]] for question: ${question}`
+      ? `Updated existing durable query page [[${page.slug}]] using ${mergeTarget.reason} match for question: ${question}`
       : `Filed answer for question: ${question}`,
     relatedIds: [page.id]
   });
