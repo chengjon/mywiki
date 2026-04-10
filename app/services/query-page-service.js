@@ -128,7 +128,8 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
     .sort((left, right) =>
       right.score - left.score ||
       right.overlapTerms.length - left.overlapTerms.length ||
-      String(left.page.title ?? '').localeCompare(String(right.page.title ?? ''))
+      String(left.page.title ?? '').localeCompare(String(right.page.title ?? '')) ||
+      String(left.page.slug ?? '').localeCompare(String(right.page.slug ?? ''))
     )
     .slice(0, limit);
 }

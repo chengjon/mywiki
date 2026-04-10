@@ -645,3 +645,33 @@ test('findSimilarQueryPages returns explainable similarity candidates without ex
   assert.ok(candidates[0].reasons.some((reason) => /existing question: explain the openai platform overview/i.test(reason)));
   assert.ok(candidates[0].reasons.some((reason) => /question overlap/i.test(reason)));
 });
+
+test('findSimilarQueryPages sorts tied candidates by slug for stable conflict output', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'z-openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'a-openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const candidates = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Platform Summary',
+    question: 'Summarize the OpenAI platform overview'
+  });
+
+  assert.deepEqual(
+    candidates.map((candidate) => candidate.page.slug),
+    ['a-openai-platform-overview', 'z-openai-platform-overview']
+  );
+});
