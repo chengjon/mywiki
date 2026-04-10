@@ -10,7 +10,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import { runCli } from '../app/cli/index.js';
 import { createRepositories } from '../app/db/repositories.js';
 
-const TEST_MONGO_LAUNCH_TIMEOUT_MS = 30_000;
+const TEST_MONGO_LAUNCH_TIMEOUT_MS = 60_000;
 
 function createTestMongoServer() {
   return MongoMemoryServer.create({
