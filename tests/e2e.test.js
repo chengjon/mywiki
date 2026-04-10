@@ -1244,6 +1244,45 @@ test('file-answer surfaces similar durable query conflicts and requires explicit
   assert.match(queryPage, /Merged durable query update/i);
 });
 
+test('file-answer does not auto-merge same-title durable queries when the stored question differs', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const openaiFile = path.join(root, 'openai.md');
+  await writeFile(openaiFile, '# OpenAI Platform\n\nOpenAI offers APIs, ChatGPT, and pricing tiers.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', openaiFile, '--title', 'OpenAI Platform Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain the OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'How does OpenAI platform pricing work?',
+      '--title', 'OpenAI Platform Overview'
+    ]),
+    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview/i
+  );
+
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'How does OpenAI platform pricing work?',
+    '--title', 'OpenAI Platform Overview',
+    '--slug', 'openai-platform-overview'
+  ]);
+
+  const state = JSON.parse(await readFile(path.join(root, 'meta', 'manifests', 'state.json'), 'utf8'));
+  const queryPages = state.pages.filter((page) => page.type === 'query');
+  const queryPage = await readFile(path.join(root, 'wiki', 'queries', 'openai-platform-overview.md'), 'utf8');
+
+  assert.equal(queryPages.length, 1);
+  assert.match(queryPage, /Merged durable query update/i);
+});
+
 test('repeated duplicate ingests do not create extra source pages', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const firstFile = path.join(root, 'first.md');

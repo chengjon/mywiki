@@ -236,6 +236,7 @@ async function fileAnswerPage({ repos, rootDir, question, title, slug }) {
   const explicitSlug = Boolean(slug);
   const mergeTarget = await findMergeableQueryPage(repos, {
     slug: requestedSlug,
+    explicitSlug,
     title: pageTitle,
     question
   });

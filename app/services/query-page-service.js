@@ -40,10 +40,11 @@ function compareTokenSets(leftTokens, rightTokens) {
   };
 }
 
-export async function findMergeableQueryPage(repos, { slug, title, question }) {
+export async function findMergeableQueryPage(repos, { slug, explicitSlug = false, title, question }) {
   const queryPages = (await repos.pages.all()).filter((page) => page.type === 'query');
+  const normalizedQuestion = normalizeComparableText(question);
 
-  if (slug) {
+  if (explicitSlug && slug) {
     const slugMatch = queryPages.find((page) => page.slug === slug);
     if (slugMatch) {
       return { page: slugMatch, reason: 'slug' };
@@ -52,13 +53,21 @@ export async function findMergeableQueryPage(repos, { slug, title, question }) {
 
   const normalizedTitle = normalizeComparableText(title);
   if (normalizedTitle) {
-    const titleMatch = queryPages.find((page) => normalizeComparableText(page.title) === normalizedTitle);
+    const titleMatch = queryPages.find((page) => {
+      if (normalizeComparableText(page.title) !== normalizedTitle) {
+        return false;
+      }
+      const storedQuestion = normalizeComparableText(extractStoredQuestion(page));
+      if (!storedQuestion || !normalizedQuestion) {
+        return true;
+      }
+      return storedQuestion === normalizedQuestion;
+    });
     if (titleMatch) {
       return { page: titleMatch, reason: 'title' };
     }
   }
 
-  const normalizedQuestion = normalizeComparableText(question);
   if (normalizedQuestion) {
     const questionMatch = queryPages.find((page) => normalizeComparableText(extractStoredQuestion(page)) === normalizedQuestion);
     if (questionMatch) {

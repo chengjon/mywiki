@@ -570,6 +570,7 @@ test('findMergeableQueryPage matches durable queries by slug title and normalize
 
   const bySlug = await findMergeableQueryPage(repos, {
     slug: 'openai-identity-query',
+    explicitSlug: true,
     title: 'Other Title',
     question: 'Different question'
   });
@@ -577,8 +578,7 @@ test('findMergeableQueryPage matches durable queries by slug title and normalize
   assert.equal(bySlug.reason, 'slug');
 
   const byTitle = await findMergeableQueryPage(repos, {
-    title: 'OpenAI Identity Query',
-    question: 'Another wording'
+    title: 'OpenAI Identity Query'
   });
   assert.equal(byTitle.page.slug, 'openai-identity-query');
   assert.equal(byTitle.reason, 'title');
@@ -589,6 +589,34 @@ test('findMergeableQueryPage matches durable queries by slug title and normalize
   });
   assert.equal(byQuestion.page.slug, 'openai-identity-query');
   assert.equal(byQuestion.reason, 'question');
+});
+
+test('findMergeableQueryPage does not auto-merge same title or derived slug when stored question differs', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const nonExplicitSlugMatch = await findMergeableQueryPage(repos, {
+    slug: 'openai-platform-overview',
+    title: 'OpenAI Platform Overview',
+    question: 'How does OpenAI platform pricing work?'
+  });
+  assert.equal(nonExplicitSlugMatch, null);
+
+  const explicitSlugMatch = await findMergeableQueryPage(repos, {
+    slug: 'openai-platform-overview',
+    explicitSlug: true,
+    title: 'OpenAI Platform Overview',
+    question: 'How does OpenAI platform pricing work?'
+  });
+  assert.equal(explicitSlugMatch.page.slug, 'openai-platform-overview');
+  assert.equal(explicitSlugMatch.reason, 'slug');
 });
 
 test('findSimilarQueryPages returns explainable similarity candidates without exact merge', async () => {
