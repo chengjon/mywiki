@@ -556,6 +556,92 @@ test('doctor and repair report repo-relative paths for duplicate extra export ba
   }
 });
 
+test('repair --prune handles combined wiki export drift and mongo collection repair in one run', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const file = path.join(root, 'openai-note.md');
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_combined_repair_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await writeFile(file, '# OpenAI\n\nOpenAI builds ChatGPT and an API platform.', 'utf8');
+
+  try {
+    await runCli([
+      'ingest-source',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--type', 'file',
+      '--path', file,
+      '--title', 'OpenAI Note'
+    ], { stdout });
+
+    await runCli([
+      'file-answer',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--question', 'Who is OpenAI?',
+      '--title', 'OpenAI Mongo Query'
+    ], { stdout });
+
+    const queryPath = path.join(root, 'wiki', 'queries', 'openai-mongo-query.md');
+    const orphanPath = path.join(root, 'wiki', 'topics', 'orphan-topic.md');
+    await unlink(queryPath);
+    await writeFile(orphanPath, '# Orphan Topic\n', 'utf8');
+
+    const client = new MongoClient(mongoUri);
+    await client.connect();
+
+    try {
+      await client.db(dbName).collection('queries').drop();
+    } finally {
+      await client.close();
+    }
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'repair',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--prune'
+    ], { stdout });
+    const repairOutput = stdoutChunks.join('');
+
+    assert.match(repairOutput, /Repaired missing export files: wiki\/queries\/openai-mongo-query\.md/i);
+    assert.match(repairOutput, /Pruned export files: wiki\/topics\/orphan-topic\.md/i);
+    assert.match(repairOutput, /Repaired mongo collections: queries/i);
+    assert.match(repairOutput, /Repaired mongo indexes: queries \(queries_id_unique\)/i);
+    assert.match(repairOutput, /Missing collections: none/i);
+
+    const repairedPage = await readFile(queryPath, 'utf8');
+    assert.match(repairedPage, /# OpenAI Mongo Query/);
+    await assert.rejects(readFile(orphanPath, 'utf8'), /ENOENT/);
+
+    const repairedClient = new MongoClient(mongoUri);
+    await repairedClient.connect();
+
+    try {
+      const collections = await repairedClient.db(dbName).listCollections().toArray();
+      assert.ok(collections.some((collection) => collection.name === 'queries'));
+    } finally {
+      await repairedClient.close();
+    }
+  } finally {
+    await mongod.stop();
+  }
+});
+
 test('doctor --compare-storage reports file and mongo drift with concrete slugs', async () => {
   const mongod = await MongoMemoryServer.create();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
