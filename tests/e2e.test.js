@@ -274,6 +274,32 @@ test('batch-ingest remembers renamed duplicate paths and reingests later changes
   assert.match(sourcePage, /Content drift detected: yes/);
 });
 
+test('batch-ingest report lists repo-relative paths for custom import directories', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+  const importDir = path.join(root, 'imports');
+
+  await runCli(['doctor', '--root', root], { stdout });
+  await mkdir(importDir, { recursive: true });
+  await writeFile(path.join(importDir, '01-openai-notes.md'), '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root, '--dir', importDir], { stdout });
+
+  stdoutChunks.length = 0;
+  await runCli(['batch-ingest', '--root', root, '--dir', importDir], { stdout });
+
+  const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
+
+  assert.match(reportPage, /Directory: .*\/imports/);
+  assert.match(reportPage, /imports\/01-openai-notes\.md \| already imported from local path/i);
+});
+
 test('doctor honors governance config overrides and reports missing governance targets', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const stdoutChunks = [];

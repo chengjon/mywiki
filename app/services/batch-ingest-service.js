@@ -33,7 +33,18 @@ function findImportedSourceByChecksum(sources, checksum) {
   return sources.find((source) => source.checksum && source.checksum === checksum) ?? null;
 }
 
-function renderBatchIngestReport({ directory, mode, processed, skipped, failed }) {
+function formatReportPath(rootDir, filePath, fileName) {
+  if (!filePath) {
+    return fileName;
+  }
+
+  const relativePath = path.relative(rootDir, filePath);
+  return (relativePath || fileName)
+    .split(path.sep)
+    .join('/');
+}
+
+function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped, failed }) {
   const renderLines = (items, formatter, empty) => (
     items.length > 0
       ? items.map((item) => `- ${formatter(item)}`).join('\n')
@@ -51,15 +62,15 @@ function renderBatchIngestReport({ directory, mode, processed, skipped, failed }
     '',
     '## Processed',
     '',
-    renderLines(processed, (item) => `${item.fileName} -> [[${item.page.slug}]]`, 'None'),
+    renderLines(processed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} -> [[${item.page.slug}]]`, 'None'),
     '',
     '## Skipped',
     '',
-    renderLines(skipped, (item) => `${item.fileName} | ${item.reason}`, 'None'),
+    renderLines(skipped, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.reason}`, 'None'),
     '',
     '## Failed',
     '',
-    renderLines(failed, (item) => `${item.fileName} | ${item.error}`, 'None'),
+    renderLines(failed, (item) => `${formatReportPath(rootDir, item.filePath, item.fileName)} | ${item.error}`, 'None'),
     ''
   ].join('\n');
 }
@@ -183,7 +194,7 @@ export async function batchIngestSources(repos, rootDir, { dir, sourceType = 'fi
   });
   await finalizeRepositoryArtifacts(rootDir, repos);
   const reportPath = path.join(paths.metaReports, 'latest-batch-ingest.md');
-  const reportContents = renderBatchIngestReport({ directory: targetDir, mode, processed, skipped, failed });
+  const reportContents = renderBatchIngestReport({ rootDir, directory: targetDir, mode, processed, skipped, failed });
   await writeIfChanged(reportPath, reportContents);
 
   return {
