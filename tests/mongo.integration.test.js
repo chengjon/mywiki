@@ -441,6 +441,55 @@ test('doctor lists extra wiki exports and repair --prune removes them', async ()
   }
 });
 
+test('repair without prune names unpruned extra wiki exports', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const file = path.join(root, 'openai-note.md');
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_unpruned_extra_exports_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await writeFile(file, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  try {
+    await runCli([
+      'ingest-source',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--type', 'file',
+      '--path', file,
+      '--title', 'OpenAI Note'
+    ], { stdout });
+
+    const orphanPath = path.join(root, 'wiki', 'queries', 'orphan-query.md');
+    await writeFile(orphanPath, '# Orphan Query\n', 'utf8');
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'repair',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+    const repairOutput = stdoutChunks.join('');
+
+    assert.match(repairOutput, /Extra wiki exports: 1/i);
+    assert.match(repairOutput, /Unpruned export files: orphan-query\.md/i);
+    const orphanPage = await readFile(orphanPath, 'utf8');
+    assert.match(orphanPage, /# Orphan Query/);
+  } finally {
+    await mongod.stop();
+  }
+});
+
 test('doctor --compare-storage reports file and mongo drift with concrete slugs', async () => {
   const mongod = await MongoMemoryServer.create();
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));

@@ -572,6 +572,11 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
             .map((filePath) => path.basename(filePath))
             .join(', ')}\n`);
         }
+        if (result.consistency.extraExports.length > 0) {
+          stdout.write(`Unpruned export files: ${result.consistency.extraExports
+            .map((filePath) => path.basename(filePath))
+            .join(', ')}\n`);
+        }
         if (exportConsistencyBefore.missingExports.length === 0 && exportConsistencyBefore.extraExports.length === 0) {
           stdout.write('No wiki export repairs needed\n');
         }
