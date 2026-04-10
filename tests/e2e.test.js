@@ -296,7 +296,7 @@ test('batch-ingest report lists repo-relative paths for custom import directorie
 
   const reportPage = await readFile(path.join(root, 'meta', 'reports', 'latest-batch-ingest.md'), 'utf8');
 
-  assert.match(reportPage, /Directory: .*\/imports/);
+  assert.match(reportPage, /Directory: imports/);
   assert.match(reportPage, /imports\/01-openai-notes\.md \| already imported from local path/i);
 });
 

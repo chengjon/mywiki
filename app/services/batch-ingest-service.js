@@ -54,7 +54,7 @@ function renderBatchIngestReport({ rootDir, directory, mode, processed, skipped,
   return [
     '# Batch Ingest Report',
     '',
-    `Directory: ${directory}`,
+    `Directory: ${formatReportPath(rootDir, directory, path.basename(directory))}`,
     `Mode: ${mode}`,
     `Processed: ${processed.length}`,
     `Skipped: ${skipped.length}`,
