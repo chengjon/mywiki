@@ -675,3 +675,33 @@ test('findSimilarQueryPages sorts tied candidates by slug for stable conflict ou
     ['a-openai-platform-overview', 'z-openai-platform-overview']
   );
 });
+
+test('findSimilarQueryPages truncates long existing title and question reasons for readable conflict output', async () => {
+  const repos = createInMemoryRepositories();
+  const longTitle = 'OpenAI Platform Overview with an Extremely Verbose Durable Query Title That Should Not Flood the CLI Output';
+  const longQuestion = 'Explain the OpenAI platform overview with exhaustive detail about APIs, pricing, models, onboarding, governance, enterprise controls, and integration workflows for a new team evaluating adoption today.';
+
+  await upsertPage(repos, {
+    title: longTitle,
+    slug: 'openai-platform-overview-long',
+    type: 'query',
+    summary: 'Long durable query example.',
+    details: `Question: ${longQuestion}\n\nEvidence:\n- OpenAI offers APIs.`
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: longTitle,
+    question: longQuestion
+  });
+
+  const existingTitleReason = candidate.reasons.find((reason) => reason.startsWith('Existing title: '));
+  const existingQuestionReason = candidate.reasons.find((reason) => reason.startsWith('Existing question: '));
+
+  assert.ok(existingTitleReason);
+  assert.ok(existingQuestionReason);
+  assert.match(existingTitleReason, /\.\.\.$/);
+  assert.match(existingQuestionReason, /\.\.\.$/);
+  assert.ok(existingTitleReason.length < longTitle.length + 'Existing title: '.length);
+  assert.ok(existingQuestionReason.length < longQuestion.length + 'Existing question: '.length);
+  assert.ok(!existingQuestionReason.includes('enterprise controls, and integration workflows for a new team evaluating adoption today.'));
+});

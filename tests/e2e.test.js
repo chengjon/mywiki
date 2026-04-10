@@ -1326,6 +1326,40 @@ test('file-answer lists multiple similar durable query candidates on separate li
   );
 });
 
+test('file-answer truncates long similar-query reasons to keep conflict output readable', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const sourceFile = path.join(root, 'openai.md');
+  const longTitle = 'OpenAI Platform Overview with an Extremely Verbose Durable Query Title That Should Not Flood the CLI Output';
+  const longQuestion = 'Explain the OpenAI platform overview with exhaustive detail about APIs, pricing, models, onboarding, governance, enterprise controls, and integration workflows for a new team evaluating adoption today.';
+  const similarQuestion = 'Summarize the OpenAI platform overview with exhaustive detail about APIs, pricing, models, onboarding, governance, enterprise controls, and integration workflows for a new team evaluating adoption tomorrow.';
+
+  await writeFile(sourceFile, '# OpenAI\n\nOpenAI offers platform, API, and overview materials.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', sourceFile, '--title', 'OpenAI Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', longQuestion,
+    '--title', longTitle
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', similarQuestion,
+      '--title', 'OpenAI Platform Overview Summary'
+    ]),
+    (error) => {
+      assert.match(error.message, /Similar durable query pages exist:/i);
+      assert.match(error.message, /Existing title: .*\.\.\./i);
+      assert.match(error.message, /Existing question: .*\.\.\./i);
+      assert.ok(!error.message.includes('integration workflows for a new team evaluating adoption today.'));
+      return true;
+    }
+  );
+});
+
 test('repeated duplicate ingests do not create extra source pages', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const firstFile = path.join(root, 'first.md');

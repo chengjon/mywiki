@@ -40,6 +40,16 @@ function compareTokenSets(leftTokens, rightTokens) {
   };
 }
 
+function formatReasonValue(value, maxLength = 72) {
+  const normalized = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
 export async function findMergeableQueryPage(repos, { slug, explicitSlug = false, title, question }) {
   const queryPages = (await repos.pages.all()).filter((page) => page.type === 'query');
   const normalizedQuestion = normalizeComparableText(question);
@@ -100,10 +110,10 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
       );
       const reasons = [];
       if (page.title) {
-        reasons.push(`Existing title: ${page.title}`);
+        reasons.push(`Existing title: ${formatReasonValue(page.title)}`);
       }
       if (storedQuestion) {
-        reasons.push(`Existing question: ${storedQuestion}`);
+        reasons.push(`Existing question: ${formatReasonValue(storedQuestion)}`);
       }
       if (titleComparison.overlapTerms.length > 0) {
         reasons.push(`Title overlap: ${titleComparison.overlapTerms.join(', ')}`);
