@@ -1225,7 +1225,7 @@ test('file-answer surfaces similar durable query conflicts and requires explicit
       '--question', 'Summarize the OpenAI platform overview',
       '--title', 'OpenAI Platform Summary'
     ]),
-    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview/i
+    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/i
   );
 
   await runCli([
@@ -1264,7 +1264,7 @@ test('file-answer does not auto-merge same-title durable queries when the stored
       '--question', 'How does OpenAI platform pricing work?',
       '--title', 'OpenAI Platform Overview'
     ]),
-    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview/i
+    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/i
   );
 
   await runCli([
