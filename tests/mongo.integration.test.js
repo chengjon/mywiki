@@ -175,7 +175,7 @@ test('doctor reports mongo export drift and repair restores missing wiki files',
     const repairOutput = stdoutChunks.join('');
 
     const repairedPage = await readFile(queryPath, 'utf8');
-    assert.match(repairOutput, /Repaired missing export files: openai-mongo-query\.md/i);
+    assert.match(repairOutput, /Repaired missing export files: wiki\/queries\/openai-mongo-query\.md/i);
     assert.match(repairedPage, /# OpenAI Mongo Query/);
   } finally {
     await mongod.stop();
@@ -434,7 +434,7 @@ test('doctor lists extra wiki exports and repair --prune removes them', async ()
     ], { stdout });
     const repairOutput = stdoutChunks.join('');
 
-    assert.match(repairOutput, /Pruned export files: orphan-query\.md/i);
+    assert.match(repairOutput, /Pruned export files: wiki\/queries\/orphan-query\.md/i);
     await assert.rejects(readFile(orphanPath, 'utf8'), /ENOENT/);
   } finally {
     await mongod.stop();
@@ -482,9 +482,75 @@ test('repair without prune names unpruned extra wiki exports', async () => {
     const repairOutput = stdoutChunks.join('');
 
     assert.match(repairOutput, /Extra wiki exports: 1/i);
-    assert.match(repairOutput, /Unpruned export files: orphan-query\.md/i);
+    assert.match(repairOutput, /Unpruned export files: wiki\/queries\/orphan-query\.md/i);
     const orphanPage = await readFile(orphanPath, 'utf8');
     assert.match(orphanPage, /# Orphan Query/);
+  } finally {
+    await mongod.stop();
+  }
+});
+
+test('doctor and repair report repo-relative paths for duplicate extra export basenames', async () => {
+  const mongod = await MongoMemoryServer.create();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-mongo-'));
+  const file = path.join(root, 'openai-note.md');
+  const mongoUri = mongod.getUri();
+  const dbName = 'mywiki_duplicate_orphan_basename_test';
+  const stdoutChunks = [];
+  const stdout = {
+    write(value) {
+      stdoutChunks.push(String(value));
+    }
+  };
+
+  await writeFile(file, '# OpenAI\n\nOpenAI builds ChatGPT.', 'utf8');
+
+  try {
+    await runCli([
+      'ingest-source',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--type', 'file',
+      '--path', file,
+      '--title', 'OpenAI Note'
+    ], { stdout });
+
+    const topicOrphanPath = path.join(root, 'wiki', 'topics', 'shared-orphan.md');
+    const queryOrphanPath = path.join(root, 'wiki', 'queries', 'shared-orphan.md');
+    await writeFile(topicOrphanPath, '# Shared Orphan Topic\n', 'utf8');
+    await writeFile(queryOrphanPath, '# Shared Orphan Query\n', 'utf8');
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'doctor',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName
+    ], { stdout });
+    const doctorOutput = stdoutChunks.join('');
+
+    assert.match(doctorOutput, /Extra wiki exports: 2/i);
+    assert.match(doctorOutput, /wiki\/topics\/shared-orphan\.md/i);
+    assert.match(doctorOutput, /wiki\/queries\/shared-orphan\.md/i);
+
+    stdoutChunks.length = 0;
+    await runCli([
+      'repair',
+      '--root', root,
+      '--storage', 'mongo',
+      '--mongo-uri', mongoUri,
+      '--db-name', dbName,
+      '--prune'
+    ], { stdout });
+    const repairOutput = stdoutChunks.join('');
+
+    assert.match(repairOutput, /Pruned export files: .*wiki\/topics\/shared-orphan\.md/i);
+    assert.match(repairOutput, /Pruned export files: .*wiki\/queries\/shared-orphan\.md/i);
+    await assert.rejects(readFile(topicOrphanPath, 'utf8'), /ENOENT/);
+    await assert.rejects(readFile(queryOrphanPath, 'utf8'), /ENOENT/);
   } finally {
     await mongod.stop();
   }

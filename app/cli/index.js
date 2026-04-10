@@ -20,6 +20,7 @@ import { batchIngestSources } from '../services/batch-ingest-service.js';
 import { findMergeableQueryPage, findSimilarQueryPages } from '../services/query-page-service.js';
 import {
   buildDoctorReport,
+  formatRepositoryRelativePaths,
   formatMongoCollectionCheckStatus,
   formatMongoCollectionStatus,
   formatMongoIndexStatus,
@@ -568,14 +569,10 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         stdout.write(`Missing wiki exports: ${result.consistency.missingExports.length}\n`);
         stdout.write(`Extra wiki exports: ${result.consistency.extraExports.length}\n`);
         if (exportConsistencyBefore.missingExports.length > 0) {
-          stdout.write(`Repaired missing export files: ${exportConsistencyBefore.missingExports
-            .map((filePath) => path.basename(filePath))
-            .join(', ')}\n`);
+          stdout.write(`Repaired missing export files: ${formatRepositoryRelativePaths(rootDir, exportConsistencyBefore.missingExports).join(', ')}\n`);
         }
         if (result.consistency.extraExports.length > 0) {
-          stdout.write(`Unpruned export files: ${result.consistency.extraExports
-            .map((filePath) => path.basename(filePath))
-            .join(', ')}\n`);
+          stdout.write(`Unpruned export files: ${formatRepositoryRelativePaths(rootDir, result.consistency.extraExports).join(', ')}\n`);
         }
         if (exportConsistencyBefore.missingExports.length === 0 && exportConsistencyBefore.extraExports.length === 0) {
           stdout.write('No wiki export repairs needed\n');
@@ -598,7 +595,7 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         }
         if (result.prunedFiles.length > 0) {
           stdout.write(`Pruned wiki exports: ${result.prunedFiles.length}\n`);
-          stdout.write(`Pruned export files: ${result.prunedFiles.map((filePath) => path.basename(filePath)).join(', ')}\n`);
+          stdout.write(`Pruned export files: ${formatRepositoryRelativePaths(rootDir, result.prunedFiles).join(', ')}\n`);
         }
         return result;
       }

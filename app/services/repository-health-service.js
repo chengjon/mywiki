@@ -83,6 +83,12 @@ function sameStringArray(left, right) {
   return JSON.stringify(leftValues) === JSON.stringify(rightValues);
 }
 
+export function formatRepositoryRelativePaths(rootDir, filePaths) {
+  return filePaths
+    .map((filePath) => path.relative(rootDir, filePath).split(path.sep).join('/'))
+    .sort((left, right) => left.localeCompare(right));
+}
+
 export async function inspectExportConsistency(rootDir, repos) {
   const pages = await repos.pages.all();
   const expected = expectedWikiFiles(rootDir, pages);
@@ -347,10 +353,10 @@ export async function buildDoctorReport(rootDir, repos, { storage, compareStorag
     `Log file exists: ${await exists(paths.metaLog) ? 'yes' : 'no'}`
   ];
   if (consistency.missingExports.length > 0) {
-    lines.push(`Missing export files: ${consistency.missingExports.map((filePath) => path.basename(filePath)).join(', ')}`);
+    lines.push(`Missing export files: ${formatRepositoryRelativePaths(rootDir, consistency.missingExports).join(', ')}`);
   }
   if (consistency.extraExports.length > 0) {
-    lines.push(`Extra export files: ${consistency.extraExports.map((filePath) => path.basename(filePath)).join(', ')}`);
+    lines.push(`Extra export files: ${formatRepositoryRelativePaths(rootDir, consistency.extraExports).join(', ')}`);
   }
 
   const mongoHealth = await inspectMongoHealth(repos);
