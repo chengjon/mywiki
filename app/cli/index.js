@@ -567,6 +567,11 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         stdout.write(`Rebuilt ${result.exportedPages} wiki exports\n`);
         stdout.write(`Missing wiki exports: ${result.consistency.missingExports.length}\n`);
         stdout.write(`Extra wiki exports: ${result.consistency.extraExports.length}\n`);
+        if (exportConsistencyBefore.missingExports.length > 0) {
+          stdout.write(`Repaired missing export files: ${exportConsistencyBefore.missingExports
+            .map((filePath) => path.basename(filePath))
+            .join(', ')}\n`);
+        }
         if (exportConsistencyBefore.missingExports.length === 0 && exportConsistencyBefore.extraExports.length === 0) {
           stdout.write('No wiki export repairs needed\n');
         }
@@ -588,6 +593,7 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         }
         if (result.prunedFiles.length > 0) {
           stdout.write(`Pruned wiki exports: ${result.prunedFiles.length}\n`);
+          stdout.write(`Pruned export files: ${result.prunedFiles.map((filePath) => path.basename(filePath)).join(', ')}\n`);
         }
         return result;
       }

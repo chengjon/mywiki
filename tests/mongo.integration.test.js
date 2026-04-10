@@ -172,8 +172,10 @@ test('doctor reports mongo export drift and repair restores missing wiki files',
       '--mongo-uri', mongoUri,
       '--db-name', dbName
     ], { stdout });
+    const repairOutput = stdoutChunks.join('');
 
     const repairedPage = await readFile(queryPath, 'utf8');
+    assert.match(repairOutput, /Repaired missing export files: openai-mongo-query\.md/i);
     assert.match(repairedPage, /# OpenAI Mongo Query/);
   } finally {
     await mongod.stop();
@@ -430,7 +432,9 @@ test('doctor lists extra wiki exports and repair --prune removes them', async ()
       '--db-name', dbName,
       '--prune'
     ], { stdout });
+    const repairOutput = stdoutChunks.join('');
 
+    assert.match(repairOutput, /Pruned export files: orphan-query\.md/i);
     await assert.rejects(readFile(orphanPath, 'utf8'), /ENOENT/);
   } finally {
     await mongod.stop();
