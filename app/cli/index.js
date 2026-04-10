@@ -23,6 +23,7 @@ import {
   formatMongoCollectionCheckStatus,
   formatMongoCollectionStatus,
   formatMongoIndexStatus,
+  inspectExportConsistency,
   inspectMongoHealth,
   summarizeMongoRepairs,
   repairRepositoryArtifacts
@@ -554,6 +555,7 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
       }
       case 'repair': {
         const mongoHealthBefore = await inspectMongoHealth(repos);
+        const exportConsistencyBefore = await inspectExportConsistency(rootDir, repos);
         if (mongoHealthBefore && repos.diagnostics?.ensureHealth) {
           await repos.diagnostics.ensureHealth();
         }
@@ -562,9 +564,12 @@ export async function runCli(argv, { env = process.env, stdout = process.stdout,
         });
         const mongoHealth = await inspectMongoHealth(repos);
         const mongoRepairs = summarizeMongoRepairs(mongoHealthBefore, mongoHealth);
-        stdout.write(`Repaired ${result.exportedPages} wiki exports\n`);
+        stdout.write(`Rebuilt ${result.exportedPages} wiki exports\n`);
         stdout.write(`Missing wiki exports: ${result.consistency.missingExports.length}\n`);
         stdout.write(`Extra wiki exports: ${result.consistency.extraExports.length}\n`);
+        if (exportConsistencyBefore.missingExports.length === 0 && exportConsistencyBefore.extraExports.length === 0) {
+          stdout.write('No wiki export repairs needed\n');
+        }
         if (mongoHealth) {
           if (mongoRepairs.repairedCollections.length > 0) {
             stdout.write(`Repaired mongo collections: ${mongoRepairs.repairedCollections.join(', ')}\n`);

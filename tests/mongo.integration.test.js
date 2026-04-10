@@ -369,6 +369,7 @@ test('repair reports when no mongo repairs are needed', async () => {
     ], { stdout });
     const repairOutput = stdoutChunks.join('');
 
+    assert.match(repairOutput, /No wiki export repairs needed/i);
     assert.match(repairOutput, /No mongo repairs needed/i);
     assert.match(repairOutput, /Mongo indexes: ok/i);
     assert.match(repairOutput, /Missing collections: none/i);
