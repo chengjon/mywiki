@@ -247,9 +247,9 @@ async function fileAnswerPage({ repos, rootDir, question, title, slug }) {
     });
     if (similarCandidates.length > 0) {
       const candidateList = similarCandidates
-        .map((candidate) => `[[${candidate.page.slug}]] (${candidate.reasons.join('; ')}; use --slug ${candidate.page.slug})`)
-        .join(', ');
-      throw new Error(`Similar durable query pages exist: ${candidateList}. Re-run with --slug to update one explicitly or choose a new slug to keep a separate page.`);
+        .map((candidate) => `- [[${candidate.page.slug}]] (${candidate.reasons.join('; ')}; use --slug ${candidate.page.slug})`)
+        .join('\n');
+      throw new Error(`Similar durable query pages exist:\n${candidateList}\nRe-run with --slug to update one explicitly or choose a new slug to keep a separate page.`);
     }
   }
   const relatedCitations = uniqueBy(

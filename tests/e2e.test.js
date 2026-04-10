@@ -1225,7 +1225,7 @@ test('file-answer surfaces similar durable query conflicts and requires explicit
       '--question', 'Summarize the OpenAI platform overview',
       '--title', 'OpenAI Platform Summary'
     ]),
-    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/i
+    /Similar durable query pages exist:\n- \[\[openai-platform-overview\]\].*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/is
   );
 
   await runCli([
@@ -1264,7 +1264,7 @@ test('file-answer does not auto-merge same-title durable queries when the stored
       '--question', 'How does OpenAI platform pricing work?',
       '--title', 'OpenAI Platform Overview'
     ]),
-    /Similar durable query pages exist:.*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/i
+    /Similar durable query pages exist:\n- \[\[openai-platform-overview\]\].*Existing question: Explain the OpenAI platform overview.*--slug openai-platform-overview/is
   );
 
   await runCli([
@@ -1281,6 +1281,47 @@ test('file-answer does not auto-merge same-title durable queries when the stored
 
   assert.equal(queryPages.length, 1);
   assert.match(queryPage, /Merged durable query update/i);
+});
+
+test('file-answer lists multiple similar durable query candidates on separate lines with slug hints', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const sourceFile = path.join(root, 'openai.md');
+  await writeFile(sourceFile, '# OpenAI\n\nOpenAI offers platform, API, and overview materials.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', sourceFile, '--title', 'OpenAI Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain OpenAI API overview',
+    '--title', 'OpenAI API Overview',
+    '--slug', 'openai-api-overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'Summarize OpenAI overview',
+      '--title', 'OpenAI Overview Summary'
+    ]),
+    (error) => {
+      assert.match(error.message, /Similar durable query pages exist:/i);
+      const apiLine = '- [[openai-api-overview]]';
+      const platformLine = '- [[openai-platform-overview]]';
+      assert.ok(error.message.includes(apiLine));
+      assert.ok(error.message.includes(platformLine));
+      assert.ok(error.message.includes('use --slug openai-api-overview'));
+      assert.ok(error.message.includes('use --slug openai-platform-overview'));
+      assert.ok(error.message.indexOf(apiLine) < error.message.indexOf(platformLine));
+      return true;
+    }
+  );
 });
 
 test('repeated duplicate ingests do not create extra source pages', async () => {
