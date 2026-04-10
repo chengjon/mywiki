@@ -724,7 +724,7 @@ test('findSimilarQueryPages omits redundant overlapping-terms reasons when title
   });
 
   assert.ok(candidate.reasons.some((reason) => /Title overlap: openai, platform/i.test(reason)));
-  assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, platform, overview/i.test(reason)));
+  assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, overview, platform/i.test(reason)));
   assert.ok(!candidate.reasons.some((reason) => /Overlapping terms:/i.test(reason)));
 });
 
@@ -773,4 +773,24 @@ test('findSimilarQueryPages keeps similarity scores when multiple candidates com
 
   assert.equal(candidates.length, 2);
   assert.ok(candidates.every((candidate) => candidate.reasons.some((reason) => /Similarity score:/i.test(reason))));
+});
+
+test('findSimilarQueryPages sorts overlap terms deterministically in reason text', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: 'Platform OpenAI Summary',
+    question: 'Overview OpenAI summarize platform'
+  });
+
+  assert.ok(candidate.reasons.some((reason) => /Title overlap: openai, platform/i.test(reason)));
+  assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, overview, platform/i.test(reason)));
 });

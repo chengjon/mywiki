@@ -1383,7 +1383,7 @@ test('file-answer avoids redundant generic overlap reasons in similar-query conf
     ]),
     (error) => {
       assert.match(error.message, /Title overlap: openai, platform/i);
-      assert.match(error.message, /Question overlap: openai, platform, overview/i);
+      assert.match(error.message, /Question overlap: openai, overview, platform/i);
       assert.ok(!/Overlapping terms:/i.test(error.message));
       return true;
     }
@@ -1413,6 +1413,34 @@ test('file-answer hides similarity score when only one similar-query candidate e
     (error) => {
       assert.match(error.message, /Similar durable query pages exist:/i);
       assert.ok(!/Similarity score:/i.test(error.message));
+      return true;
+    }
+  );
+});
+
+test('file-answer prints overlap reasons with deterministic term ordering', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const openaiFile = path.join(root, 'openai.md');
+  await writeFile(openaiFile, '# OpenAI Platform\n\nOpenAI offers APIs and ChatGPT.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', openaiFile, '--title', 'OpenAI Platform Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain the OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'Overview OpenAI summarize platform',
+      '--title', 'Platform OpenAI Summary'
+    ]),
+    (error) => {
+      assert.match(error.message, /Title overlap: openai, platform/i);
+      assert.match(error.message, /Question overlap: openai, overview, platform/i);
       return true;
     }
   );

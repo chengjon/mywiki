@@ -32,7 +32,9 @@ function tokenizeComparableText(value) {
 function compareTokenSets(leftTokens, rightTokens) {
   const leftSet = new Set(leftTokens);
   const rightSet = new Set(rightTokens);
-  const overlapTerms = [...leftSet].filter((token) => rightSet.has(token));
+  const overlapTerms = [...leftSet]
+    .filter((token) => rightSet.has(token))
+    .sort((left, right) => left.localeCompare(right));
   const unionSize = new Set([...leftSet, ...rightSet]).size;
   return {
     overlapTerms,
