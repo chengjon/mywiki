@@ -681,6 +681,7 @@ test('findSimilarQueryPages truncates long existing title and question reasons f
   const repos = createInMemoryRepositories();
   const longTitle = 'OpenAI Platform Overview with an Extremely Verbose Durable Query Title That Should Not Flood the CLI Output';
   const longQuestion = 'Explain the OpenAI platform overview with exhaustive detail about APIs, pricing, models, onboarding, governance, enterprise controls, and integration workflows for a new team evaluating adoption today.';
+  const similarLongTitle = 'OpenAI Platform Overview with an Extremely Verbose Durable Query Summary Title for Review';
 
   await upsertPage(repos, {
     title: longTitle,
@@ -691,7 +692,7 @@ test('findSimilarQueryPages truncates long existing title and question reasons f
   });
 
   const [candidate] = await findSimilarQueryPages(repos, {
-    title: longTitle,
+    title: similarLongTitle,
     question: longQuestion
   });
 
@@ -793,4 +794,24 @@ test('findSimilarQueryPages sorts overlap terms deterministically in reason text
 
   assert.ok(candidate.reasons.some((reason) => /Title overlap: openai, platform/i.test(reason)));
   assert.ok(candidate.reasons.some((reason) => /Question overlap: openai, overview, platform/i.test(reason)));
+});
+
+test('findSimilarQueryPages omits existing-title reason when the incoming title already matches', async () => {
+  const repos = createInMemoryRepositories();
+
+  await upsertPage(repos, {
+    title: 'OpenAI Platform Overview',
+    slug: 'openai-platform-overview',
+    type: 'query',
+    summary: 'Overview of the OpenAI platform.',
+    details: 'Question: Explain the OpenAI platform overview\n\nEvidence:\n- OpenAI offers APIs.'
+  });
+
+  const [candidate] = await findSimilarQueryPages(repos, {
+    title: 'OpenAI Platform Overview',
+    question: 'How does OpenAI platform pricing work?'
+  });
+
+  assert.ok(candidate.reasons.some((reason) => /Existing question:/i.test(reason)));
+  assert.ok(!candidate.reasons.some((reason) => /Existing title:/i.test(reason)));
 });

@@ -1446,6 +1446,34 @@ test('file-answer prints overlap reasons with deterministic term ordering', asyn
   );
 });
 
+test('file-answer omits redundant existing-title text for same-title durable query conflicts', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
+  const openaiFile = path.join(root, 'openai.md');
+  await writeFile(openaiFile, '# OpenAI Platform\n\nOpenAI offers APIs, ChatGPT, and pricing tiers.', 'utf8');
+
+  await runCli(['ingest-source', '--root', root, '--type', 'file', '--path', openaiFile, '--title', 'OpenAI Platform Notes']);
+  await runCli([
+    'file-answer',
+    '--root', root,
+    '--question', 'Explain the OpenAI platform overview',
+    '--title', 'OpenAI Platform Overview'
+  ]);
+
+  await assert.rejects(
+    runCli([
+      'file-answer',
+      '--root', root,
+      '--question', 'How does OpenAI platform pricing work?',
+      '--title', 'OpenAI Platform Overview'
+    ]),
+    (error) => {
+      assert.match(error.message, /Existing question: Explain the OpenAI platform overview/i);
+      assert.ok(!/Existing title:/i.test(error.message));
+      return true;
+    }
+  );
+});
+
 test('repeated duplicate ingests do not create extra source pages', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'mywiki-'));
   const firstFile = path.join(root, 'first.md');

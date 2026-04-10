@@ -111,7 +111,10 @@ export async function findSimilarQueryPages(repos, { title, question, limit = 3 
         tokenizeComparableText(storedQuestion)
       );
       const reasons = [];
-      if (page.title) {
+      const normalizedIncomingTitle = normalizeComparableText(title);
+      const normalizedExistingTitle = normalizeComparableText(page.title);
+      const showExistingTitle = page.title && normalizedExistingTitle !== normalizedIncomingTitle;
+      if (showExistingTitle) {
         reasons.push(`Existing title: ${formatReasonValue(page.title)}`);
       }
       if (storedQuestion) {
